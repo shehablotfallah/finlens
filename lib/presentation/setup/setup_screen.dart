@@ -5,6 +5,8 @@ import '../../core/theme/finlens_theme.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
 
+enum _LanguageChoice { system, english, arabic }
+
 /// Quick setup wizard that runs right after onboarding:
 ///   1. Language confirmation
 ///   2. Salary day
@@ -27,8 +29,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   int _salaryDay = 1;
   String _baseCurrency = 'EGP';
   FinlensThemeMode _theme = FinlensThemeMode.system;
-  Locale? _locale;
-  bool _setupPin = false;
+  _LanguageChoice _languageChoice = _LanguageChoice.system;
 
   @override
   void dispose() {
@@ -36,24 +37,32 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     super.dispose();
   }
 
-  void _next() {
+  Future<void> _next() async {
     if (_page < 5) {
       _pageCtrl.nextPage(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
       );
     } else {
-      _commit();
+      await _commit();
     }
   }
 
   Future<void> _commit() async {
     final notifier = ref.read(appSettingsProvider.notifier);
-    await notifier.setLocale(_locale);
+    await notifier.setLocale(_selectedLocale);
     await notifier.setSalaryDay(_salaryDay);
     await notifier.setBaseCurrency(_baseCurrency);
     await notifier.setThemeMode(_theme);
     await notifier.setSetupComplete();
+  }
+
+  Locale? get _selectedLocale {
+    return switch (_languageChoice) {
+      _LanguageChoice.system => null,
+      _LanguageChoice.english => const Locale('en'),
+      _LanguageChoice.arabic => const Locale('ar'),
+    };
   }
 
   @override
@@ -76,6 +85,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               child: PageView(
                 controller: _pageCtrl,
                 physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (index) => setState(() => _page = index),
                 children: [
                   _languageStep(l, theme),
                   _salaryStep(l, theme),
@@ -123,23 +133,23 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       subtitle: l.setupLanguageSubtitle,
       child: Column(
         children: [
-          _ChoiceTile<Locale?>(
+          _ChoiceTile<_LanguageChoice>(
             label: l.settingsLanguageSystem,
-            value: null,
-            groupValue: _locale,
-            onChanged: (v) => setState(() => _locale = v),
+            value: _LanguageChoice.system,
+            groupValue: _languageChoice,
+            onChanged: (v) => setState(() => _languageChoice = v!),
           ),
-          _ChoiceTile<Locale?>(
+          _ChoiceTile<_LanguageChoice>(
             label: l.settingsLanguageEn,
-            value: const Locale('en'),
-            groupValue: _locale,
-            onChanged: (v) => setState(() => _locale = v),
+            value: _LanguageChoice.english,
+            groupValue: _languageChoice,
+            onChanged: (v) => setState(() => _languageChoice = v!),
           ),
-          _ChoiceTile<Locale?>(
+          _ChoiceTile<_LanguageChoice>(
             label: l.settingsLanguageAr,
-            value: const Locale('ar'),
-            groupValue: _locale,
-            onChanged: (v) => setState(() => _locale = v),
+            value: _LanguageChoice.arabic,
+            groupValue: _languageChoice,
+            onChanged: (v) => setState(() => _languageChoice = v!),
           ),
         ],
       ),
@@ -234,21 +244,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       subtitle: l.setupSecuritySubtitle,
       child: Column(
         children: [
-          SwitchListTile(
-            value: _setupPin,
-            onChanged: (v) => setState(() => _setupPin = v),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
             title: Text(l.setupSecuritySetup),
+            subtitle: Text(l.settingsPin),
           ),
-          if (_setupPin)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(start: 16, end: 16, bottom: 8),
-              child: Text(
-                l.settingsPin,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
         ],
       ),
     );
