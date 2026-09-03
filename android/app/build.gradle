@@ -19,11 +19,14 @@ def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "
 android {
     namespace = "com.shehablotfallah.finlens"
     compileSdk = 35
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required by flutter_local_notifications on modern AGP —
+        // enables support for java.time / newer APIs on older Android versions.
+        coreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -59,4 +62,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Required for coreLibraryDesugaringEnabled above (flutter_local_notifications).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
