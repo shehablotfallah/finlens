@@ -1,0 +1,91 @@
+name: finlens
+description: "Finlens — A privacy-first personal finance tracker for expenses, recurring bills, installments, and AI-driven insights. Local-first, encrypted, bilingual (Arabic/English)."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Code generation / immutable models
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Database (encrypted SQLite)
+  drift: ^2.20.0
+  sqlite3_flutter_libs: ^0.5.24
+  sqlcipher_flutter_libs: ^0.6.4
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Security
+  flutter_secure_storage: ^9.2.2
+  local_auth: ^2.3.0
+
+  # Localization / formatting
+  intl: ^0.19.0
+
+  # Charts
+  fl_chart: ^0.69.0
+
+  # Notifications
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
+
+  # File export / share
+  share_plus: ^10.0.0
+  file_picker: ^8.1.2
+  pdf: ^3.11.1
+  printing: ^5.13.3
+  csv: ^6.0.0
+
+  # Onboarding / hints
+  shared_preferences: ^2.3.2
+
+  # Utilities
+  collection: ^1.18.0
+  uuid: ^4.5.1
+  decimal: ^3.0.2
+  money2: ^5.2.1
+  crypto: ^3.0.6
+  logger: ^2.4.0
+
+  # HTTP for LLM (no analytics SDKs — opt-in only)
+  http: ^1.2.2
+
+  # App lifecycle
+  flutter_hooks: ^0.20.5
+  hooks_riverpod: ^2.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  drift_dev: ^2.20.0
+  riverpod_generator: ^2.4.3
+  custom_lint: ^0.6.7
+  riverpod_lint: ^2.3.13
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+
+flutter_intl:
+  enabled: true

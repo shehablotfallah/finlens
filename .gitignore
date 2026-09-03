@@ -1,0 +1,33 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+**/generated_plugin_registrant.dart
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Android / iOS / etc.
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/build/
+android/app/release/
+*.jks
+*.keystore
+
+# macOS
+.DS_Store
+
+# Generated
+.dart_tool/flutter_gen/
+**/*.g.dart
+**/*.freezed.dart
