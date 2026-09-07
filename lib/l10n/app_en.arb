@@ -74,6 +74,34 @@
   "setupFinishTitle": "You're all set",
   "setupFinishBody": "Tap the + button to log your first transaction.",
 
+  "setupStepOf": "Step {current} of {total}",
+  "@setupStepOf": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "setupLanguageEnDescription": "Use English everywhere in the app",
+  "setupLanguageArDescription": "استخدم العربية في كل أنحاء التطبيق",
+  "setupLanguageSystemDescription": "Match your device's language",
+  "setupSalaryDayHint": "Day of month (1–28)",
+  "setupCurrencyEgpDescription": "Egyptian Pound — ج.م",
+  "setupCurrencyUsdDescription": "US Dollar — $",
+  "setupThemeLightDescription": "Bright, clean look",
+  "setupThemeDarkDescription": "Easy on the eyes at night",
+  "setupThemeAutoDescription": "Follow your device's setting",
+  "setupSecurityDescription": "Protect your data with a PIN. You can add biometrics later from Settings.",
+  "setupSecurityPinNote": "You'll set your PIN on the next screen",
+  "setupFinishSummary": "Here's a summary of your choices:",
+  "setupSummaryLanguage": "Language",
+  "setupSummarySalaryDay": "Salary day",
+  "setupSummaryCurrency": "Currency",
+  "setupSummaryTheme": "Theme",
+  "setupSummarySecurity": "App lock",
+  "setupSummaryOn": "On",
+  "setupSummaryOff": "Off",
+  "setupEdit": "Edit",
+
   "homeGreetingMorning": "Good morning",
   "homeGreetingAfternoon": "Good afternoon",
   "homeGreetingEvening": "Good evening",

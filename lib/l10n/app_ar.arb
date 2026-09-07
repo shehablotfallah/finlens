@@ -70,6 +70,34 @@
   "setupFinishTitle": "كل شيء جاهز",
   "setupFinishBody": "اضغط زر + لتسجيل أول معاملة.",
 
+  "setupStepOf": "خطوة {current} من {total}",
+  "@setupStepOf": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "setupLanguageEnDescription": "Use English everywhere in the app",
+  "setupLanguageArDescription": "استخدم العربية في كل أنحاء التطبيق",
+  "setupLanguageSystemDescription": "اتبع لغة جهازك",
+  "setupSalaryDayHint": "يوم في الشهر (1–28)",
+  "setupCurrencyEgpDescription": "الجنيه المصري — ج.م",
+  "setupCurrencyUsdDescription": "الدولار الأمريكي — $",
+  "setupThemeLightDescription": "مظهر ساطع ونظيف",
+  "setupThemeDarkDescription": "مريح للعين في الليل",
+  "setupThemeAutoDescription": "اتبع إعدادات جهازك",
+  "setupSecurityDescription": "احمِ بياناتك برمز PIN. تقدر تضيف البصمة لاحقاً من الإعدادات.",
+  "setupSecurityPinNote": "هتحدد رمز PIN في الشاشة الجاية",
+  "setupFinishSummary": "ده ملخّص اختياراتك:",
+  "setupSummaryLanguage": "اللغة",
+  "setupSummarySalaryDay": "يوم الراتب",
+  "setupSummaryCurrency": "العملة",
+  "setupSummaryTheme": "المظهر",
+  "setupSummarySecurity": "قفل التطبيق",
+  "setupSummaryOn": "مُفعّل",
+  "setupSummaryOff": "مُعطّل",
+  "setupEdit": "تعديل",
+
   "homeGreetingMorning": "صباح الخير",
   "homeGreetingAfternoon": "مساء الخير",
   "homeGreetingEvening": "مساء الخير",
