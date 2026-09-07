@@ -332,7 +332,30 @@ final localeProvider = Provider<Locale?>((ref) {
 });
 
 // ---------------------------------------------------------------------------
-// App lock state — tracks when app was backgrounded to enforce auto-lock
+// App lock state — tracks when app was backgrounded to enforce auto-lock.
+//
+// SECURITY MODEL
+// --------------
+// The lock state is **persisted** to SharedPreferences so it survives
+// process death. This is critical: when the OS kills the app for memory
+// or the user swipes it away from Recents, the in-memory AppLockNotifier
+// is destroyed. If we kept `isLocked = false` as the default, the user
+// would see MainShell directly on next launch — bypassing auth.
+//
+// Strategy:
+//   * On pause (paused/inactive/hidden) we persist `lastBackgroundedAt`
+//     to disk so we know the app was backgrounded.
+//   * On notifier initialization (which happens on cold start), we read:
+//       - appLockEnabled setting
+//       - lastBackgroundedAt timestamp
+//     If lock is enabled AND lastBackgroundedAt is set AND the elapsed
+//     time exceeds autoLockSeconds (or autoLockSeconds == 0 = lock
+//     immediately on any backgrounding), we set `isLocked = true`.
+//   * If lock is enabled but lastBackgroundedAt is null (genuine first
+//     launch after enable), we lock too — safe default.
+//   * The lock screen is shown via the EntryGate. Protected content
+//     (MainShell) is NEVER built before auth completes because the
+//     EntryGate is a synchronous gate on `isLocked`.
 // ---------------------------------------------------------------------------
 
 class AppLockState {
@@ -350,49 +373,122 @@ class AppLockState {
   }) {
     return AppLockState(
       isLocked: isLocked ?? this.isLocked,
-      lastBackgroundedAt:
-          clearBackgrounded ? null : (lastBackgroundedAt ?? this.lastBackgroundedAt),
+      lastBackgroundedAt: clearBackgrounded
+          ? null
+          : (lastBackgroundedAt ?? this.lastBackgroundedAt),
     );
   }
 }
 
 class AppLockNotifier extends StateNotifier<AppLockState> {
-  AppLockNotifier(this._ref) : super(AppLockState(isLocked: false, lastBackgroundedAt: null));
+  AppLockNotifier(this._ref) : super(_computeInitialState(_ref));
 
   final Ref _ref;
 
-  void onAppPaused() {
-    state = state.copyWith(
-      lastBackgroundedAt: DateTime.now(),
-    );
+  /// Computes the initial state on cold start by reading persisted
+  /// settings + lastBackgroundedAt timestamp.
+  static AppLockState _computeInitialState(Ref ref) {
+    final settings = ref.read(appSettingsProvider);
+    if (!settings.appLockEnabled) {
+      return AppLockState(isLocked: false, lastBackgroundedAt: null);
+    }
+    // App lock is enabled. Check lastBackgroundedAt from persisted storage.
+    final prefs = ref.read(sharedPreferencesProvider).maybeWhen(
+          data: (p) => p,
+          orElse: () => null,
+        );
+    final lastBgMs = prefs?.getInt(AppConstants.prefLastBackgroundedAt);
+    if (lastBgMs == null) {
+      // First launch after enabling lock, or prefs were wiped.
+      // Safe default: lock immediately so user must authenticate once.
+      return AppLockState(isLocked: true, lastBackgroundedAt: null);
+    }
+    final lastBg = DateTime.fromMillisecondsSinceEpoch(lastBgMs);
+    final elapsed = DateTime.now().difference(lastBg).inSeconds;
+    // autoLockSeconds == 0 means "Never auto-lock" — but on a cold start
+    // we ALWAYS lock (the OS killed the app, so it was backgrounded
+    // for an unknown amount of time). This is the safe choice for a
+    // finance app.
+    if (settings.autoLockSeconds == 0) {
+      // "Never" applies only to warm-starts (resume within session).
+      // Cold start always locks.
+      return AppLockState(isLocked: true, lastBackgroundedAt: lastBg);
+    }
+    if (elapsed >= settings.autoLockSeconds) {
+      return AppLockState(isLocked: true, lastBackgroundedAt: lastBg);
+    }
+    // Warm-start within the timeout window — keep unlocked, but clear
+    // the persisted timestamp so we don't keep stale state around.
+    prefs?.remove(AppConstants.prefLastBackgroundedAt);
+    return AppLockState(isLocked: false, lastBackgroundedAt: null);
   }
 
+  /// Called by WidgetsBindingObserver when the app is backgrounded
+  /// (paused / inactive / hidden). Persists the timestamp to disk so
+  /// it survives process death.
+  void onAppPaused() {
+    final prefs = _ref.read(sharedPreferencesProvider).maybeWhen(
+          data: (p) => p,
+          orElse: () => null,
+        );
+    prefs?.setInt(
+      AppConstants.prefLastBackgroundedAt,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    // We do NOT set isLocked here — the user might come back within
+    // the timeout window. The lock is enforced on resume (warm-start)
+    // or on next cold start.
+    state = state.copyWith(lastBackgroundedAt: DateTime.now());
+  }
+
+  /// Called by WidgetsBindingObserver when the app returns to the
+  /// foreground. Used for warm-start lock enforcement.
   void onAppResumed() {
     final settings = _ref.read(appSettingsProvider);
     if (!settings.appLockEnabled) {
+      _clearPersistedBackgrounded();
       state = state.copyWith(isLocked: false, clearBackgrounded: true);
       return;
     }
     final lastBg = state.lastBackgroundedAt;
     if (lastBg == null) {
-      // First resume — keep unlocked
-      state = state.copyWith(isLocked: false, clearBackgrounded: true);
+      // No background timestamp — keep current state.
       return;
     }
     final elapsed = DateTime.now().difference(lastBg).inSeconds;
+    if (settings.autoLockSeconds == 0) {
+      // Never auto-lock on warm starts.
+      _clearPersistedBackgrounded();
+      state = state.copyWith(clearBackgrounded: true);
+      return;
+    }
     if (elapsed >= settings.autoLockSeconds) {
+      _clearPersistedBackgrounded();
       state = state.copyWith(isLocked: true, clearBackgrounded: true);
     } else {
+      _clearPersistedBackgrounded();
       state = state.copyWith(clearBackgrounded: true);
     }
   }
 
+  void _clearPersistedBackgrounded() {
+    final prefs = _ref.read(sharedPreferencesProvider).maybeWhen(
+          data: (p) => p,
+          orElse: () => null,
+        );
+    prefs?.remove(AppConstants.prefLastBackgroundedAt);
+  }
+
+  /// Force the app into locked state (e.g. user manually pressed "lock now"
+  /// from settings, or auth failed and we want to require re-auth).
   void forceLock() {
     state = state.copyWith(isLocked: true);
   }
 
+  /// Called after successful PIN/biometric auth.
   void unlock() {
-    state = state.copyWith(isLocked: false);
+    _clearPersistedBackgrounded();
+    state = state.copyWith(isLocked: false, clearBackgrounded: true);
   }
 }
 

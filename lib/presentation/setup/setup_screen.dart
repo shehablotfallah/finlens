@@ -87,19 +87,34 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     );
   }
 
+  /// Applies the locale IMMEDIATELY when the user selects one on the
+  /// language step. This makes the rest of the wizard (steps 2-6)
+  /// already reflect the chosen language — fixing the bug where the
+  /// next screen stayed in English after selecting Arabic.
+  void _selectLocale(Locale? locale) {
+    setState(() => _locale = locale);
+    ref.read(appSettingsProvider.notifier).setLocale(locale);
+  }
+
+  /// Applies the theme IMMEDIATELY when selected, for the same reason.
+  void _selectTheme(FinlensThemeMode mode) {
+    setState(() => _theme = mode);
+    ref.read(appSettingsProvider.notifier).setThemeMode(mode);
+  }
+
   Future<void> _commit() async {
     setState(() => _saving = true);
     final notifier = ref.read(appSettingsProvider.notifier);
-    await notifier.setLocale(_locale);
+    // Locale + theme are already persisted (we applied them immediately
+    // on selection). Persist the rest here.
     await notifier.setSalaryDay(_salaryDay);
     await notifier.setBaseCurrency(_baseCurrency);
-    await notifier.setThemeMode(_theme);
     if (_setupPin) {
-      // Mark app lock enabled; user will set PIN on first lock prompt
+      // Mark app lock enabled; user will set PIN on first lock prompt.
       await notifier.setAppLock(true);
     }
     await notifier.setSetupComplete();
-    // _saving stays true; FinlensApp will rebuild and route to MainShell
+    // _saving stays true; FinlensApp will rebuild and route to MainShell.
   }
 
   String _localeLabel(AppLocalizations l, Locale? locale) {
@@ -190,7 +205,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             icon: Icons.devices_outlined,
             title: l.settingsLanguageSystem,
             subtitle: l.setupLanguageSystemDescription,
-            onTap: () => setState(() => _locale = null),
+            onTap: () => _selectLocale(null),
           ),
           const SizedBox(height: 12),
           _OptionCard(
@@ -202,7 +217,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               'EN',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            onTap: () => setState(() => _locale = const Locale('en')),
+            onTap: () => _selectLocale(const Locale('en')),
           ),
           const SizedBox(height: 12),
           _OptionCard(
@@ -214,7 +229,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               'ع',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
             ),
-            onTap: () => setState(() => _locale = const Locale('ar')),
+            onTap: () => _selectLocale(const Locale('ar')),
           ),
         ],
       ),
@@ -331,7 +346,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             icon: Icons.light_mode_outlined,
             title: l.settingsThemeLight,
             subtitle: l.setupThemeLightDescription,
-            onTap: () => setState(() => _theme = FinlensThemeMode.light),
+            onTap: () => _selectTheme(FinlensThemeMode.light),
           ),
           const SizedBox(height: 12),
           _OptionCard(
@@ -339,7 +354,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             icon: Icons.dark_mode_outlined,
             title: l.settingsThemeDark,
             subtitle: l.setupThemeDarkDescription,
-            onTap: () => setState(() => _theme = FinlensThemeMode.dark),
+            onTap: () => _selectTheme(FinlensThemeMode.dark),
           ),
           const SizedBox(height: 12),
           _OptionCard(
@@ -347,7 +362,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             icon: Icons.brightness_auto_outlined,
             title: l.settingsThemeAuto,
             subtitle: l.setupThemeAutoDescription,
-            onTap: () => setState(() => _theme = FinlensThemeMode.system),
+            onTap: () => _selectTheme(FinlensThemeMode.system),
           ),
         ],
       ),

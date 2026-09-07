@@ -9,7 +9,21 @@ class AppConstants {
   // Developer info — required to appear in About / Settings / README.
   static const String developer = 'Shehab Lotfallah';
   static const String developerHandle = '@shehablotfallah';
+  static const String developerRole = 'Backend Engineer / Full Stack Engineer';
   static const String supportEmail = 'shehab-dev@outlook.com';
+  static const String facebookUrl = 'https://www.facebook.com/shehablotfallah';
+  static const String education = 'BSc in Computer and Information Sciences — Mansoura University';
+  static const String graduationYear = '2024';
+
+  // Tech stack summary (kept concise — this is an app, not a CV).
+  static const List<String> techStack = [
+    'C# / .NET / ASP.NET Core',
+    'Django / Python',
+    'Flutter / Dart',
+    'JavaScript / TypeScript / Next.js / Node.js',
+    'SQL Server / PostgreSQL / EF Core',
+    'Redis / Docker / Git / Firebase',
+  ];
 
   // Storage keys for SharedPreferences / SecureStorage namespaces.
   static const String prefOnboardingComplete = 'onboarding_complete';
@@ -24,6 +38,11 @@ class AppConstants {
   static const String prefAutoLockSeconds = 'auto_lock_seconds';
   static const String prefReminderDaysBefore = 'reminder_days_before';
   static const String prefLastInsightMonth = 'last_insight_month';
+
+  // Persisted lock state — used to enforce lock on cold start after timeout.
+  // Stored in SharedPreferences (NOT sensitive — only a timestamp).
+  static const String prefLastBackgroundedAt = 'last_backgrounded_at_ms';
+  static const String prefNotifPermissionRequested = 'notif_perm_requested';
 
   // Secure storage keys.
   static const String secureDbPassphrase = 'finlens_db_passphrase';

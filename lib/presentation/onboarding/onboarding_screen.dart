@@ -51,11 +51,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Skip button — aligned to the END edge so it mirrors
+            // correctly in RTL (left in LTR, right in RTL).
             Align(
               alignment: AlignmentDirectional.centerEnd,
-              child: TextButton(
-                onPressed: _skip,
-                child: Text(l.commonSkip),
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(end: 8),
+                child: TextButton(
+                  onPressed: _skip,
+                  child: Text(l.commonSkip),
+                ),
               ),
             ),
             Expanded(

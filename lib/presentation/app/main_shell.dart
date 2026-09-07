@@ -7,9 +7,13 @@ import '../dashboard/dashboard_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../transactions/transactions_screen.dart';
-import 'providers.dart';
 
 /// Main app shell — bottom navigation across the 5 top-level destinations.
+///
+/// Lifecycle observation (for app-lock enforcement) is handled at the
+/// `FinlensApp` root, NOT here. Previously this widget attached its own
+/// observer, which meant lock state was lost when the user was in
+/// onboarding/setup or when MainShell wasn't yet built on cold start.
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
@@ -17,34 +21,8 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserver {
+class _MainShellState extends ConsumerState<MainShell> {
   int _index = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    // Initialize notifications
-    ref.read(notificationServiceProvider).init();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final lockNotifier = ref.read(appLockProvider.notifier);
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden) {
-      lockNotifier.onAppPaused();
-    } else if (state == AppLifecycleState.resumed) {
-      lockNotifier.onAppResumed();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

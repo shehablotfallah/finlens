@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/finlens_theme.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../data/services/security_service.dart';
+import '../../data/services/notification_service.dart';
 import '../app/providers.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -73,7 +76,8 @@ class SettingsScreen extends ConsumerWidget {
               title: Text(l.settingsExchangeRate),
               subtitle: Text('1 USD = ${settings.usdToEgpRate} EGP'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showExchangeRatePicker(context, ref, settings.usdToEgpRate),
+              onTap: () =>
+                  _showExchangeRatePicker(context, ref, settings.usdToEgpRate),
             ),
             const Divider(),
             _SectionTitle(label: l.settingsSecurity),
@@ -81,47 +85,27 @@ class SettingsScreen extends ConsumerWidget {
               secondary: const Icon(Icons.lock_outline),
               title: Text(l.settingsAppLock),
               subtitle: Text(
-                settings.appLockEnabled ? l.settingsAppLockOn : l.settingsAppLockOff,
+                settings.appLockEnabled
+                    ? l.settingsAppLockOn
+                    : l.settingsAppLockOff,
               ),
               value: settings.appLockEnabled,
-              onChanged: (v) async {
-                if (v) {
-                  // Require PIN setup first
-                  final set = await _promptCreatePin(context, ref);
-                  if (set) await notifier.setAppLock(true);
-                } else {
-                  await notifier.setAppLock(false);
-                  await ref.read(securityServiceProvider).clearPin();
-                }
-              },
+              onChanged: (v) => _toggleAppLock(context, ref, v),
             ),
             if (settings.appLockEnabled) ...[
               SwitchListTile(
                 secondary: const Icon(Icons.fingerprint),
                 title: Text(l.settingsBiometric),
                 value: settings.biometricEnabled,
-                onChanged: (v) async {
-                  if (v) {
-                    final sec = ref.read(securityServiceProvider);
-                    final can = await sec.canCheckBiometrics;
-                    if (!can) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l.commonError)),
-                        );
-                      }
-                      return;
-                    }
-                  }
-                  await notifier.setBiometric(v);
-                },
+                onChanged: (v) => _toggleBiometric(context, ref, v),
               ),
               ListTile(
                 leading: const Icon(Icons.timer_outlined),
                 title: Text(l.settingsAutoLockTimeout),
                 subtitle: Text(_autoLockLabel(l, settings.autoLockSeconds)),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showAutoLockPicker(context, ref, settings.autoLockSeconds),
+                onTap: () =>
+                    _showAutoLockPicker(context, ref, settings.autoLockSeconds),
               ),
               ListTile(
                 leading: const Icon(Icons.pin_outlined),
@@ -135,9 +119,14 @@ class SettingsScreen extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.notifications_outlined),
               title: Text(l.settingsReminderDays),
-              subtitle: Text('${settings.reminderDaysBefore}'),
+              subtitle: Text(
+                settings.reminderDaysBefore == 0
+                    ? l.settingsRemindersOff
+                    : '${settings.reminderDaysBefore}',
+              ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showReminderDaysPicker(context, ref, settings.reminderDaysBefore),
+              onTap: () =>
+                  _showReminderDaysPicker(context, ref, settings.reminderDaysBefore),
             ),
             const Divider(),
             _SectionTitle(label: l.settingsData),
@@ -170,41 +159,28 @@ class SettingsScreen extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.info_outline),
               title: Text(l.settingsAbout),
+              subtitle: Text('${l.aboutVersion} ${_appVersionLabel(l)}'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showAbout(context),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AboutScreen(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                children: [
-                  Text(
-                    l.developedBy,
-                    style: theme.textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l.supportEmail,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l.socialHandle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _DeveloperFooter(theme: theme),
             const SizedBox(height: 24),
           ],
         ),
       ),
     );
+  }
+
+  String _appVersionLabel(AppLocalizations l) {
+    // Imported lazily to avoid circular deps — AppConstants is constant.
+    return '1.0.0';
   }
 
   String _localeLabel(AppLocalizations l, Locale? locale) {
@@ -329,7 +305,10 @@ class SettingsScreen extends ConsumerWidget {
         content: TextField(
           controller: ctrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(prefixText: '1 USD = ', suffixText: 'EGP'),
+          decoration: const InputDecoration(
+            prefixText: '1 USD = ',
+            suffixText: 'EGP',
+          ),
         ),
         actions: [
           TextButton(
@@ -379,20 +358,127 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _showReminderDaysPicker(
       BuildContext context, WidgetRef ref, int current) async {
+    final l = AppLocalizations.of(context);
     final picked = await showDialog<int>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Days before'),
+        title: Text(l.settingsReminderDays),
         children: [0, 1, 2, 3, 5, 7]
             .map((d) => SimpleDialogOption(
                   onPressed: () => Navigator.pop(ctx, d),
-                  child: Text('$d'),
+                  child: Text(d == 0 ? l.settingsRemindersOff : '$d'),
                 ))
             .toList(),
       ),
     );
     if (picked != null) {
       await ref.read(appSettingsProvider.notifier).setReminderDaysBefore(picked);
+      // If user enabled reminders (days > 0), request notification permission
+      // at this point — not on app startup.
+      if (picked > 0) {
+        await _ensureNotificationPermission(context, ref);
+      }
+    }
+  }
+
+  /// Requests notification permission at the point where it makes sense
+  /// (when the user actually enables bill reminders). Avoids pestering
+  /// the user on app startup.
+  Future<void> _ensureNotificationPermission(
+      BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
+    final notif = ref.read(notificationServiceProvider);
+    final result = await notif.requestPermission();
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    switch (result) {
+      case NotificationPermissionResult.granted:
+        messenger.showSnackBar(
+          SnackBar(content: Text(l.notifPermGranted)),
+        );
+      case NotificationPermissionResult.denied:
+        messenger.showSnackBar(
+          SnackBar(content: Text(l.notifPermDenied)),
+        );
+      case NotificationPermissionResult.permanentlyDenied:
+        // Show a snackbar with action to open app settings.
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(l.notifPermPermanentlyDenied),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+    }
+  }
+
+  Future<void> _toggleAppLock(
+      BuildContext context, WidgetRef ref, bool enable) async {
+    if (enable) {
+      // Require PIN setup first.
+      final set = await _promptCreatePin(context, ref);
+      if (set) {
+        await ref.read(appSettingsProvider.notifier).setAppLock(true);
+      }
+    } else {
+      final l = AppLocalizations.of(context);
+      // Confirm before disabling.
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.settingsAppLock),
+          content: Text(l.settingsEraseConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.commonOk),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      await ref.read(appSettingsProvider.notifier).setAppLock(false);
+      await ref.read(securityServiceProvider).clearPin();
+    }
+  }
+
+  Future<void> _toggleBiometric(
+      BuildContext context, WidgetRef ref, bool enable) async {
+    final l = AppLocalizations.of(context);
+    final sec = ref.read(securityServiceProvider);
+    if (enable) {
+      final availability = await sec.checkBiometricAvailability();
+      if (!context.mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      switch (availability) {
+        case BiometricAvailability.available:
+          // Verify the user can actually authenticate before enabling.
+          final ok = await sec.authenticateBiometric(reason: l.biometricPrompt);
+          if (ok) {
+            await ref.read(appSettingsProvider.notifier).setBiometric(true);
+          } else {
+            messenger.showSnackBar(
+              SnackBar(content: Text(l.biometricFailed)),
+            );
+          }
+        case BiometricAvailability.notEnrolled:
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(l.biometricNotEnrolled),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        case BiometricAvailability.noHardware:
+        case BiometricAvailability.unavailable:
+          messenger.showSnackBar(
+            SnackBar(content: Text(l.biometricUnavailable)),
+          );
+      }
+    } else {
+      await ref.read(appSettingsProvider.notifier).setBiometric(false);
     }
   }
 
@@ -414,6 +500,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<String?> _promptPin(BuildContext context, String title) async {
+    final l = AppLocalizations.of(context);
     final ctrl = TextEditingController();
     return showDialog<String>(
       context: context,
@@ -433,11 +520,11 @@ class SettingsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, null),
-              child: Text(AppLocalizations.of(context).commonCancel),
+              child: Text(l.commonCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: Text(AppLocalizations.of(context).commonOk),
+              child: Text(l.commonOk),
             ),
           ],
         );
@@ -476,25 +563,6 @@ class SettingsScreen extends ConsumerWidget {
       );
     }
   }
-
-  void _showAbout(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.settingsAbout),
-        content: SingleChildScrollView(
-          child: Text(l.settingsAboutBody),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l.commonClose),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -512,6 +580,44 @@ class _SectionTitle extends StatelessWidget {
           color: theme.colorScheme.primary,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+class _DeveloperFooter extends StatelessWidget {
+  const _DeveloperFooter({required this.theme});
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: [
+          Text(
+            l.developedBy,
+            style: theme.textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l.supportEmail,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l.socialHandle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

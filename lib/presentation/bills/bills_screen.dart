@@ -71,7 +71,7 @@ class BillsScreen extends ConsumerWidget {
                                       .byId(entry.tx.categoryId)
                                       ?.colorValue ??
                                   FinlensColors.neutral)
-                              .withOpacity(0.15),
+                              .withValues(alpha: 0.15),
                           child: Icon(
                             PredefinedCategories.byId(entry.tx.categoryId)
                                     ?.icon ??
@@ -97,9 +97,9 @@ class BillsScreen extends ConsumerWidget {
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: overdue
-                                    ? FinlensColors.expense.withOpacity(0.15)
+                                    ? FinlensColors.expense.withValues(alpha: 0.15)
                                     : soon
-                                        ? FinlensColors.warning.withOpacity(0.15)
+                                        ? FinlensColors.warning.withValues(alpha: 0.15)
                                         : theme.colorScheme.primaryContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),

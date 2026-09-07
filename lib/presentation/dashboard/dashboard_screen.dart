@@ -418,7 +418,7 @@ class _QuickCategoryChip extends StatelessWidget {
         width: 80,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -781,7 +781,7 @@ class _RecentTransactionsCard extends ConsumerWidget {
                             backgroundColor:
                                 (PredefinedCategories.byId(t.categoryId)?.colorValue ??
                                         FinlensColors.neutral)
-                                    .withOpacity(0.15),
+                                    .withValues(alpha: 0.15),
                             child: Icon(
                               PredefinedCategories.byId(t.categoryId)?.icon ??
                                   Icons.category,

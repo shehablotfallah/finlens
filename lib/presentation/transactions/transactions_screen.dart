@@ -222,7 +222,7 @@ class _SwipeableTxRow extends StatelessWidget {
       },
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.15),
+          backgroundColor: color.withValues(alpha: 0.15),
           child: Icon(
             PredefinedCategories.byId(tx.categoryId)?.icon ?? Icons.category,
             color: color,
