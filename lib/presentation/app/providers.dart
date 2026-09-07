@@ -141,7 +141,6 @@ class AppSettings {
 
   AppSettings copyWith({
     Locale? locale,
-    bool clearLocale = false,
     FinlensThemeMode? themeMode,
     int? salaryDay,
     String? baseCurrency,
@@ -155,7 +154,7 @@ class AppSettings {
     Set<String>? hintsShown,
   }) {
     return AppSettings(
-      locale: clearLocale ? locale : locale ?? this.locale,
+      locale: locale ?? this.locale,
       themeMode: themeMode ?? this.themeMode,
       salaryDay: salaryDay ?? this.salaryDay,
       baseCurrency: baseCurrency ?? this.baseCurrency,
@@ -248,7 +247,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   Future<void> setLocale(Locale? locale) async {
-    state = state.copyWith(locale: locale, clearLocale: locale == null);
+    state = state.copyWith(locale: locale);
     await _persist();
   }
 

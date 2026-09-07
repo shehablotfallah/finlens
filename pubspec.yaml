@@ -22,7 +22,11 @@ dependencies:
 
   # Database (encrypted SQLite)
   drift: ^2.20.0
-  #sqlite3_flutter_libs: ^0.5.24
+  # NOTE: sqlite3_flutter_libs removed — conflicts with sqlcipher_flutter_libs
+  # (both ship native libsqlite3 binaries; sqlcipher_flutter_libs already
+  # provides the SQLCipher-enabled variant which drift uses through its
+  # `setup` callback that runs `PRAGMA key`).
+  # sqlite3_flutter_libs: ^0.5.24
   sqlcipher_flutter_libs: ^0.6.4
   path_provider: ^2.1.4
   path: ^1.9.0
@@ -78,6 +82,7 @@ dev_dependencies:
   riverpod_generator: ^2.4.3
   custom_lint: ^0.6.7
   riverpod_lint: ^2.3.13
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -89,3 +94,11 @@ flutter:
 
 flutter_intl:
   enabled: true
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/finlens_logo.png"
+  min_sdk_android: 23
+  adaptive_icon_background: "#0F9D8F"
+  adaptive_icon_foreground: "assets/images/finlens_logo.png"
