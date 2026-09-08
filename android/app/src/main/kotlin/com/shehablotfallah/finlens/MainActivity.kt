@@ -1,26 +1,31 @@
 package com.shehablotfallah.finlens
 
-import android.app.ActivityManager
 import android.content.Intent
-import android.os.Bundle
 import android.view.WindowManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
  * Main activity for Finlens.
  *
- * Security note on FLAG_SECURE:
- * We deliberately do NOT set FLAG_SECURE on the running window — that flag also
- * blocks in-app screenshots during normal use, which the spec explicitly rejects.
+ * IMPORTANT: Extends FlutterFragmentActivity (NOT FlutterActivity) because
+ * the `local_auth` plugin requires a FragmentActivity to show the
+ * BiometricPrompt on Android. Without this, biometric authentication
+ * silently fails with "Biometric authentication is not available."
  *
- * Instead, we set FLAG_SECURE ONLY when the app is being sent to the background
- * (onPause / onStop) and clear it again on resume, so that the OS Recent-Apps
- * app-switcher thumbnail shows a black screen (banking-app behavior), but the
- * user can still take screenshots while the app is foregrounded.
+ * Security note on FLAG_SECURE:
+ * We deliberately do NOT set FLAG_SECURE on the running window — that flag
+ * also blocks in-app screenshots during normal use, which the spec explicitly
+ * rejects.
+ *
+ * Instead, we set FLAG_SECURE ONLY when the app is being sent to the
+ * background (onPause / onStop) and clear it again on resume, so that the
+ * OS Recent-Apps app-switcher thumbnail shows a black screen (banking-app
+ * behavior), but the user can still take screenshots while the app is
+ * foregrounded.
  */
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
 
     private val secureChannel = "com.shehablotfallah.finlens/secure"
 
@@ -30,7 +35,6 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "setSecureForBackground" -> {
-                        // Toggling handled by lifecycle below. No-op from Dart.
                         result.success(true)
                     }
                     "isInRecentTasks" -> {

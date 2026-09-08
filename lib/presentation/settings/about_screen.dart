@@ -87,18 +87,14 @@ class AboutScreen extends StatelessWidget {
             Center(
               child: Column(
                 children: [
-                  // Logo
-                  Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Icon(
-                      Icons.savings_outlined,
-                      size: 52,
-                      color: theme.colorScheme.primary,
+                  // Use the actual Finlens logo image instead of a generic icon
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/images/finlens_logo.png',
+                      width: 96,
+                      height: 96,
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(height: 20),

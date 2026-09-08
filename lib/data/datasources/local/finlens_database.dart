@@ -101,31 +101,27 @@ class FinlensDatabase extends _$FinlensDatabase {
 
 /// Opens the Drift database, encrypting the SQLite file using SQLCipher.
 ///
-/// ROOT CAUSE OF PREVIOUS "Database error":
-/// -----------------------------------------
-/// The previous implementation called `PRAGMA cipher_compatibility = 4;`
-/// after `PRAGMA key`. This PRAGMA is meant for opening databases created
-/// with older SQLCipher versions (1/2/3) using a newer SQLCipher build.
-/// `sqlcipher_flutter_libs` 0.6.x ships SQLCipher 4 natively, so:
+/// ROOT CAUSE OF "Database error" (TRANSACTION NOT SAVING):
+/// ------------------------------------------------------------------
+/// The previous implementation used `NativeDatabase.createInBackground()`
+/// which runs the database in a SEPARATE ISOLATE. The `sqlcipher_flutter_libs`
+/// native library is only loaded in the MAIN isolate (via `sqlite3_flutter_libs`
+/// plugin initialization). In the background isolate, `sqlite3.open()` uses
+/// the DEFAULT (non-SQLCipher) sqlite3 library, which:
+///   1. Silently ignores `PRAGMA key` (it doesn't understand it)
+///   2. Opens the database file as an UNENCRYPTED, EMPTY database
+///   3. INSERTs appear to succeed but data goes to a temp/empty database
+///   4. On next open, the data is gone → "transaction not saved"
 ///
-///   - For a NEW database (first launch): the file is created with
-///     SQLCipher 4 defaults. Setting `cipher_compatibility = 4` is a
-///     no-op (already 4) but in some plugin versions it triggers a
-///     re-key negotiation that fails silently, leaving the database
-///     in a half-open state where INSERTs throw `database is locked`
-///     or `file is not a database`.
-///   - For an EXISTING database: same problem on reopen.
+/// FIX: Use `NativeDatabase` (NOT `createInBackground`) so the database
+/// runs in the MAIN ISOLATE where SQLCipher is properly loaded. The
+/// `PRAGMA key` is then understood by SQLCipher and the database is
+/// correctly encrypted + decrypted.
 ///
-/// FIX: Only set `PRAGMA key`. Do NOT set `cipher_compatibility`.
-/// The default of SQLCipher 4 (shipped by the plugin) is correct.
-///
-/// Additional safety:
-///   * The passphrase is generated using `Random.secure()` (not time-
-///     based entropy) for proper cryptographic strength.
-///   * The passphrase is stored in `flutter_secure_storage` (Android
-///     Keystore-backed), never in SharedPreferences.
-///   * The SQL escape (single-quote doubling) prevents injection via
-///     the key itself.
+/// Performance note: Running the DB in the main isolate is slightly
+/// slower for large queries, but for a personal finance app with
+/// occasional small inserts, the difference is imperceptible.
+/// ------------------------------------------------------------------
 Future<FinlensDatabase> openFinlensDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'finlens.db');
@@ -141,17 +137,14 @@ Future<FinlensDatabase> openFinlensDatabase() async {
     await secureStorage.write(key: passKey, value: passphrase);
   }
 
-  final executor = NativeDatabase.createInBackground(
+  // Use NativeDatabase (NOT createInBackground) so SQLCipher is loaded
+  // in the main isolate where the native library is registered.
+  final executor = NativeDatabase(
     dbFile,
     setup: (db) {
       // SQLCipher: provide the key BEFORE any other statement.
-      // We escape single quotes by doubling them (SQL standard).
       final escaped = passphrase!.replaceAll("'", "''");
       db.execute("PRAGMA key = '$escaped';");
-      // NOTE: Do NOT set `PRAGMA cipher_compatibility` here.
-      // The plugin already ships SQLCipher 4 — setting it causes
-      // spurious "database is locked" / "file is not a database"
-      // errors on INSERT. See the method doc above for full details.
     },
   );
 

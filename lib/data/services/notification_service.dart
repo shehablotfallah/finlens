@@ -51,6 +51,20 @@ class NotificationService {
       settings,
       onDidReceiveNotificationResponse: _onTap,
     );
+    // Create the notification channel on Android BEFORE requesting
+    // permission. Some OEMs (Realme, OPPO, Xiaomi) won't show the
+    // permission dialog if no channel exists.
+    if (Platform.isAndroid) {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(const AndroidNotificationChannel(
+        'finlens_bills_channel',
+        'Bill reminders',
+        description: 'Reminders for upcoming bills',
+        importance: Importance.high,
+      ));
+    }
     _initialized = true;
   }
 

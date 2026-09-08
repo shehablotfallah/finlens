@@ -174,39 +174,46 @@ class _PinPadState extends State<PinPad>
   }
 
   Widget _keypad(ThemeData theme) {
-    return Column(
-      children: [
-        for (final row in [
-          ['1', '2', '3'],
-          ['4', '5', '6'],
-          ['7', '8', '9'],
-        ])
+    // The numeric keypad is wrapped in Directionality.ltr to prevent
+    // RTL layout from reversing the digit order. Numeric keypads follow
+    // a universal physical convention: 1-2-3 on top, 7-8-9 third row,
+    // 0 at bottom-center. This must NOT change between Arabic/English.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Column(
+        children: [
+          for (final row in [
+            ['1', '2', '3'],
+            ['4', '5', '6'],
+            ['7', '8', '9'],
+          ])
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: row
+                    .map((d) => _keyButton(d, theme, () => _onKey(d)))
+                    .toList(),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: row
-                  .map((d) => _keyButton(d, theme, () => _onKey(d)))
-                  .toList(),
+              children: [
+                const SizedBox(width: 72),
+                _keyButton('0', theme, () => _onKey('0')),
+                IconButton(
+                  onPressed: widget.enabled ? _backspace : null,
+                  icon: const Icon(Icons.backspace_outlined),
+                  iconSize: 28,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ],
             ),
           ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              const SizedBox(width: 72),
-              _keyButton('0', theme, () => _onKey('0')),
-              IconButton(
-                onPressed: widget.enabled ? _backspace : null,
-                icon: const Icon(Icons.backspace_outlined),
-                iconSize: 28,
-                color: theme.colorScheme.onSurface,
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

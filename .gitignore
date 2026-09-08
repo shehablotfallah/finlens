@@ -31,4 +31,3 @@ android/app/release/
 .dart_tool/flutter_gen/
 **/*.g.dart
 **/*.freezed.dart
-*.hprof
