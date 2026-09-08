@@ -15,11 +15,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageCtrl = PageController();
   int _page = 0;
 
-  static const _pages = <({String titleKey, String bodyKey})>[
-    (titleKey: 'onboardingTitle1', bodyKey: 'onboardingBody1'),
-    (titleKey: 'onboardingTitle2', bodyKey: 'onboardingBody2'),
-    (titleKey: 'onboardingTitle3', bodyKey: 'onboardingBody3'),
-    (titleKey: 'onboardingTitle4', bodyKey: 'onboardingBody4'),
+  /// Each page now has a dedicated illustration image instead of a
+  /// generic icon. The logo is used for page 1 (welcome), and
+  /// custom illustrations for pages 2-4.
+  static const _pages = <({String titleKey, String bodyKey, String image})>[
+    (titleKey: 'onboardingTitle1', bodyKey: 'onboardingBody1', image: 'assets/images/finlens_logo.png'),
+    (titleKey: 'onboardingTitle2', bodyKey: 'onboardingBody2', image: 'assets/images/onboarding/track_analyze.png'),
+    (titleKey: 'onboardingTitle3', bodyKey: 'onboardingBody3', image: 'assets/images/onboarding/privacy.png'),
+    (titleKey: 'onboardingTitle4', bodyKey: 'onboardingBody4', image: 'assets/images/onboarding/ai_insight.png'),
   ];
 
   @override
@@ -51,8 +54,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button — aligned to the END edge so it mirrors
-            // correctly in RTL (left in LTR, right in RTL).
+            // Skip button
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: Padding(
@@ -75,17 +77,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Use the Finlens logo image on every onboarding
-                        // page — it's the app's visual identity.
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(32),
-                          child: Image.asset(
-                            'assets/images/finlens_logo.png',
-                            width: 140,
-                            height: 140,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                        // Each page has its own illustration.
+                        // The logo (page 0) gets a rounded rectangle shape,
+                        // the illustration images get a circular container.
+                        _buildIllustration(p.image, theme),
                         const SizedBox(height: 32),
                         Text(
                           _localized(l, p.titleKey),
@@ -134,7 +129,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       minimumSize: const Size(120, 48),
                     ),
                     child: Text(
-                      _page == _pages.length - 1 ? l.commonGetStarted : l.commonNext,
+                      _page == _pages.length - 1
+                          ? l.commonGetStarted
+                          : l.commonNext,
                     ),
                   ),
                 ],
@@ -146,9 +143,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
+  /// Builds the illustration for each onboarding page.
+  /// - Page 0 (welcome): Finlens logo in a rounded rectangle.
+  /// - Pages 1-3: Custom illustrations in a circular container with
+  ///   a subtle background.
+  Widget _buildIllustration(String assetPath, ThemeData theme) {
+    if (assetPath == 'assets/images/finlens_logo.png') {
+      // Logo — rounded rectangle shape
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: Image.asset(
+          assetPath,
+          width: 140,
+          height: 140,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    // Illustration — circular container with a subtle background
+    return Container(
+      width: 160,
+      height: 160,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+        shape: BoxShape.circle,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
   String _localized(AppLocalizations l, String key) {
-    // Lookup helper — AppLocalizations doesn't expose a string indexer, so
-    // we resolve via a switch.
     switch (key) {
       case 'onboardingTitle1':
         return l.onboardingTitle1;

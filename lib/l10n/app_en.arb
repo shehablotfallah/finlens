@@ -284,6 +284,10 @@
   "notifPermPermanentlyDenied": "Notification permission was denied. To get bill reminders, enable notifications in your device settings.",
   "notifPermGranted": "Notifications enabled.",
   "notifPermDenied": "Notifications disabled. You can enable them later in Settings.",
+  "notifPermOpenSettings": "Open settings",
+  "notifPermDeniedTitle": "Notifications are off",
+  "notifPermDeniedBody": "Bill reminders won't work without notification permission. Open notification settings to allow them?",
+  "notifPermAlreadyGranted": "Notifications are already enabled.",
 
   "aboutAppTagline": "Privacy-first personal finance tracker",
   "aboutAppDescription": "Finlens helps you track expenses, recurring bills, installments, and savings insights — entirely on your device, with no backend and no analytics.",
