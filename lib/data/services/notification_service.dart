@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -19,17 +20,10 @@ enum NotificationPermissionResult {
 
 /// Notification service for bill reminders.
 ///
-/// Uses flutter_local_notifications. NO push notifications, NO server
-/// component — all reminders are scheduled locally on the device.
-///
-/// Permission model:
-///   * On Android 13+ (API 33+), POST_NOTIFICATIONS is a runtime
-///     permission. We request it at the appropriate UX moment
-///     (when the user enables bill reminders or creates the first
-///     recurring transaction), NOT on app startup.
-///   * On Android 12 and below, no runtime permission is required.
-///   * We track whether we've already asked (in SharedPreferences) so
-///     we don't pester the user repeatedly.
+/// Uses flutter_local_notifications for scheduling + permission_handler
+/// for requesting the POST_NOTIFICATIONS permission on Android 13+.
+/// NO push notifications, NO server component — all reminders are
+/// scheduled locally on the device.
 class NotificationService {
   NotificationService();
 
@@ -51,9 +45,9 @@ class NotificationService {
       settings,
       onDidReceiveNotificationResponse: _onTap,
     );
-    // Create the notification channel on Android BEFORE requesting
-    // permission. Some OEMs (Realme, OPPO, Xiaomi) won't show the
-    // permission dialog if no channel exists.
+    // Create the notification channel on Android. Some OEMs (Realme,
+    // OPPO, Xiaomi) require a channel to exist before the permission
+    // dialog can be shown.
     if (Platform.isAndroid) {
       await _plugin
           .resolvePlatformSpecificImplementation<
@@ -68,45 +62,31 @@ class NotificationService {
     _initialized = true;
   }
 
-  /// Requests notification permission on Android 13+ / iOS. On Android
-  /// 12 and below, this is a no-op (always granted at install time).
-  ///
-  /// Returns [NotificationPermissionResult.granted] if permission is
-  /// already granted or was just granted; otherwise [denied] or
-  /// [permanentlyDenied] (only meaningful on iOS — Android always
-  /// allows re-prompting).
+  /// Requests notification permission using `permission_handler` (which
+  /// properly handles the Android 13+ POST_NOTIFICATIONS runtime
+  /// permission, including the "permanently denied" state on OEMs like
+  /// Realme/OPPO/Xiaomi).
   Future<NotificationPermissionResult> requestPermission() async {
     await init();
     if (!Platform.isAndroid && !Platform.isIOS) {
       return NotificationPermissionResult.granted;
     }
     try {
-      if (Platform.isAndroid) {
-        final android = _plugin
-            .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>();
-        final granted = await android?.requestNotificationsPermission() ??
-            false;
-        // On Android, requestNotificationsPermission returns false if
-        // the user denied; the next call will show the prompt again
-        // (Android allows repeated prompts).
-        return granted
-            ? NotificationPermissionResult.granted
-            : NotificationPermissionResult.denied;
+      // Use permission_handler for a more robust permission request.
+      // flutter_local_notifications' built-in requestNotificationsPermission()
+      // doesn't handle the "permanently denied" state correctly on some OEMs.
+      final status = await Permission.notification.request();
+      switch (status) {
+        case PermissionStatus.granted:
+        case PermissionStatus.limited:
+          return NotificationPermissionResult.granted;
+        case PermissionStatus.permanentlyDenied:
+          return NotificationPermissionResult.permanentlyDenied;
+        case PermissionStatus.denied:
+        case PermissionStatus.restricted:
+        case PermissionStatus.provisional:
+          return NotificationPermissionResult.denied;
       }
-      // iOS
-      final ios = _plugin
-          .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>();
-      final granted = await ios?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          ) ??
-          false;
-      return granted
-          ? NotificationPermissionResult.granted
-          : NotificationPermissionResult.denied;
     } catch (_) {
       return NotificationPermissionResult.denied;
     }
@@ -124,6 +104,12 @@ class NotificationService {
     } catch (_) {
       return true;
     }
+  }
+
+  /// Opens the Android notification settings for this app.
+  /// Used when the user has permanently denied notification permission.
+  Future<void> openNotificationSettings() async {
+    await openAppSettings();
   }
 
   /// Schedules a reminder N days before the due date.

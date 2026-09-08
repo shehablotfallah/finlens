@@ -69,6 +69,9 @@ dependencies:
   # External links (Facebook profile, mailto:)
   url_launcher: ^6.3.1
 
+  # Permission handling (notifications, etc.)
+  permission_handler: ^11.3.1
+
   # App lifecycle
   flutter_hooks: ^0.20.5
   hooks_riverpod: ^2.5.2

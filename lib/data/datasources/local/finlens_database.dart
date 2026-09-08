@@ -7,6 +7,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
+import 'package:sqlite3/open.dart';
 
 part 'finlens_database.g.dart';
 
@@ -103,30 +105,41 @@ class FinlensDatabase extends _$FinlensDatabase {
 ///
 /// ROOT CAUSE OF "Database error" (TRANSACTION NOT SAVING):
 /// ------------------------------------------------------------------
-/// The previous implementation used `NativeDatabase.createInBackground()`
-/// which runs the database in a SEPARATE ISOLATE. The `sqlcipher_flutter_libs`
-/// native library is only loaded in the MAIN isolate (via `sqlite3_flutter_libs`
-/// plugin initialization). In the background isolate, `sqlite3.open()` uses
-/// the DEFAULT (non-SQLCipher) sqlite3 library, which:
-///   1. Silently ignores `PRAGMA key` (it doesn't understand it)
-///   2. Opens the database file as an UNENCRYPTED, EMPTY database
-///   3. INSERTs appear to succeed but data goes to a temp/empty database
-///   4. On next open, the data is gone → "transaction not saved"
+/// The previous implementation was MISSING the critical call to
+/// `open.overrideFor(OperatingSystem.android, openCipherOnAndroid)`.
 ///
-/// FIX: Use `NativeDatabase` (NOT `createInBackground`) so the database
-/// runs in the MAIN ISOLATE where SQLCipher is properly loaded. The
-/// `PRAGMA key` is then understood by SQLCipher and the database is
-/// correctly encrypted + decrypted.
+/// Without this call, the `sqlite3` package (used by Drift's
+/// `NativeDatabase`) opens the DEFAULT sqlite3 library — NOT SQLCipher.
+/// The DEFAULT sqlite3 library **silently ignores** `PRAGMA key`:
+///   1. It opens the database file as an UNENCRYPTED, EMPTY database
+///   2. INSERTs appear to succeed but data goes to the wrong database
+///   3. On next open, the data is gone → "transaction not saved"
 ///
-/// Performance note: Running the DB in the main isolate is slightly
-/// slower for large queries, but for a personal finance app with
-/// occasional small inserts, the difference is imperceptible.
+/// FIX: Call `open.overrideFor(OperatingSystem.android, openCipherOnAndroid)`
+/// BEFORE creating the NativeDatabase. This tells the `sqlite3` package to
+/// load `libsqlcipher.so` instead of `libsqlite3.so`, so `PRAGMA key`
+/// is understood and the database is correctly encrypted + decrypted.
+///
+/// Reference: https://pub.dev/packages/sqlcipher_flutter_libs
 /// ------------------------------------------------------------------
 Future<FinlensDatabase> openFinlensDatabase() async {
+  // STEP 1: On Android, tell the sqlite3 package to use SQLCipher
+  // instead of the regular sqlite3 library. This MUST be called before
+  // any sqlite3 API is used (including NativeDatabase).
+  if (Platform.isAndroid) {
+    // Workaround for old Android versions where libsqlcipher.so might
+    // not be immediately available.
+    await applyWorkaroundToOpenSqlCipherOnOldAndroidVersions();
+    // Override the default sqlite3 library opener to use SQLCipher.
+    open.overrideFor(OperatingSystem.android, openCipherOnAndroid);
+  }
+
+  // STEP 2: Get the database file path.
   final dir = await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'finlens.db');
   final dbFile = File(dbPath);
 
+  // STEP 3: Get or generate the encryption passphrase from secure storage.
   const secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -137,12 +150,14 @@ Future<FinlensDatabase> openFinlensDatabase() async {
     await secureStorage.write(key: passKey, value: passphrase);
   }
 
-  // Use NativeDatabase (NOT createInBackground) so SQLCipher is loaded
-  // in the main isolate where the native library is registered.
+  // STEP 4: Open the database with NativeDatabase, applying PRAGMA key
+  // in the setup callback. Because we called open.overrideFor above,
+  // NativeDatabase now uses SQLCipher and PRAGMA key is understood.
   final executor = NativeDatabase(
     dbFile,
     setup: (db) {
       // SQLCipher: provide the key BEFORE any other statement.
+      // We escape single quotes by doubling them (SQL standard).
       final escaped = passphrase!.replaceAll("'", "''");
       db.execute("PRAGMA key = '$escaped';");
     },
@@ -154,8 +169,7 @@ Future<FinlensDatabase> openFinlensDatabase() async {
 /// Generates a cryptographically random passphrase using `Random.secure()`.
 ///
 /// We use 32 random bytes from the OS CSPRNG, base64-encoded, to ensure
-/// the SQLCipher key has full 256-bit entropy. This replaces the previous
-/// time-based entropy generator which was predictable.
+/// the SQLCipher key has full 256-bit entropy.
 String _generatePassphrase() {
   final rng = Random.secure();
   final bytes = List<int>.generate(32, (_) => rng.nextInt(256));

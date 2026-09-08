@@ -39,11 +39,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   int _salaryDay = 1;
   String _baseCurrency = 'EGP';
   FinlensThemeMode _theme = FinlensThemeMode.system;
-  Locale? _locale;
+  // Default to English — no "System" option anymore.
+  Locale? _locale = const Locale('en');
   bool _setupPin = false;
   bool _saving = false;
-  // Tracks whether a PIN was actually created during the security step.
-  // Only set to true after SecurityService.setPin() succeeds.
   bool _pinCreated = false;
 
   @override
@@ -297,14 +296,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       subtitle: l.setupLanguageSubtitle,
       child: Column(
         children: [
-          _OptionCard(
-            selected: _locale == null,
-            icon: Icons.devices_outlined,
-            title: l.settingsLanguageSystem,
-            subtitle: l.setupLanguageSystemDescription,
-            onTap: () => _selectLocale(null),
-          ),
-          const SizedBox(height: 12),
           _OptionCard(
             selected: _locale == const Locale('en'),
             icon: Icons.translate_outlined,

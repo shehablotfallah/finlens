@@ -90,41 +90,10 @@ class _FinlensAppState extends ConsumerState<FinlensApp>
       theme: FinlensTheme.light(),
       darkTheme: FinlensTheme.dark(),
       themeMode: themeMode,
+      // Always pass the explicit locale (en or ar). We removed "System"
+      // as an option — the user must explicitly choose Arabic or English.
       locale: effectiveLocale,
       supportedLocales: gen.AppLocalizations.supportedLocales,
-      // CRITICAL: localeListResolutionCallback ensures that when
-      // settings.locale is null ("System"), the app actually follows
-      // the device's system language. Without this callback, Flutter
-      // may cache the previously-resolved locale and not re-resolve
-      // when the user switches from explicit to "System".
-      //
-      // Resolution logic:
-      //   1. If the user explicitly set a locale → use it.
-      //   2. If "System" → check the device's locales in priority order.
-      //      - If the device language is Arabic → use Arabic.
-      //      - If the device language is English → use English.
-      //      - For any other language → default to English (because
-      //        "everyone knows English" and we don't support other langs).
-      localeListResolutionCallback: (deviceLocales, supportedLocales) {
-        // If the user explicitly set a locale, honor it.
-        if (settings.locale != null) {
-          return settings.locale;
-        }
-        // "System" mode — resolve from the device's locales.
-        if (deviceLocales == null || deviceLocales.isEmpty) {
-          return const Locale('en');
-        }
-        for (final deviceLocale in deviceLocales) {
-          if (deviceLocale.languageCode == 'ar') {
-            return const Locale('ar');
-          }
-          if (deviceLocale.languageCode == 'en') {
-            return const Locale('en');
-          }
-        }
-        // Device language is neither Arabic nor English → default to English.
-        return const Locale('en');
-      },
       localizationsDelegates: const [
         gen.AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

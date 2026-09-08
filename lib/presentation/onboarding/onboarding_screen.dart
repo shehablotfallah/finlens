@@ -15,11 +15,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageCtrl = PageController();
   int _page = 0;
 
-  static const _pages = <({String titleKey, String bodyKey, IconData icon})>[
-    (titleKey: 'onboardingTitle1', bodyKey: 'onboardingBody1', icon: Icons.savings_outlined),
-    (titleKey: 'onboardingTitle2', bodyKey: 'onboardingBody2', icon: Icons.insights_outlined),
-    (titleKey: 'onboardingTitle3', bodyKey: 'onboardingBody3', icon: Icons.lock_outline),
-    (titleKey: 'onboardingTitle4', bodyKey: 'onboardingBody4', icon: Icons.auto_awesome_outlined),
+  static const _pages = <({String titleKey, String bodyKey})>[
+    (titleKey: 'onboardingTitle1', bodyKey: 'onboardingBody1'),
+    (titleKey: 'onboardingTitle2', bodyKey: 'onboardingBody2'),
+    (titleKey: 'onboardingTitle3', bodyKey: 'onboardingBody3'),
+    (titleKey: 'onboardingTitle4', bodyKey: 'onboardingBody4'),
   ];
 
   @override
@@ -75,17 +75,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 132,
-                          height: 132,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            p.icon,
-                            size: 64,
-                            color: theme.colorScheme.primary,
+                        // Use the Finlens logo image on every onboarding
+                        // page — it's the app's visual identity.
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(32),
+                          child: Image.asset(
+                            'assets/images/finlens_logo.png',
+                            width: 140,
+                            height: 140,
+                            fit: BoxFit.cover,
                           ),
                         ),
                         const SizedBox(height: 32),

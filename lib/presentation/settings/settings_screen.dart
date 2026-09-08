@@ -263,13 +263,6 @@ class SettingsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: Text(l.settingsLanguageSystem),
-              onTap: () async {
-                await ref.read(appSettingsProvider.notifier).setLocale(null);
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-            ),
-            ListTile(
               title: Text(l.settingsLanguageEn),
               onTap: () async {
                 await ref
