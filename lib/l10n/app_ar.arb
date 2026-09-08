@@ -77,6 +77,11 @@
       "total": {"type": "int"}
     }
   },
+  "setupNameTitle": "إيه الاسم اللي نناديك بيه؟",
+  "setupNameSubtitle": "هنستخدمه في تحيّتك على الشاشة الرئيسية. تقدر تغيّره بعدين من الإعدادات.",
+  "setupNameHint": "اسمك المفضّل",
+  "setupNameOptional": "اختياري — سيبه فاضي عشان تتخطى",
+  "setupNameSkip": "تخطّي",
   "setupLanguageEnDescription": "Use English everywhere in the app",
   "setupLanguageArDescription": "استخدم العربية في كل أنحاء التطبيق",
   "setupLanguageSystemDescription": "اتبع لغة جهازك",
@@ -88,7 +93,9 @@
   "setupThemeAutoDescription": "اتبع إعدادات جهازك",
   "setupSecurityDescription": "احمِ بياناتك برمز PIN. تقدر تضيف البصمة لاحقاً من الإعدادات.",
   "setupSecurityPinNote": "هتحدد رمز PIN في الشاشة الجاية",
+  "setupSecurityCreatingPin": "جارٍ إنشاء رمز PIN…",
   "setupFinishSummary": "ده ملخّص اختياراتك:",
+  "setupSummaryName": "الاسم",
   "setupSummaryLanguage": "اللغة",
   "setupSummarySalaryDay": "يوم الراتب",
   "setupSummaryCurrency": "العملة",
@@ -96,6 +103,7 @@
   "setupSummarySecurity": "قفل التطبيق",
   "setupSummaryOn": "مُفعّل",
   "setupSummaryOff": "مُعطّل",
+  "setupSummaryNotSet": "غير محدّد",
   "setupEdit": "تعديل",
 
   "homeGreetingMorning": "صباح الخير",

@@ -64,7 +64,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final monthStart = DateTime(now.year, now.month, 1);
     final monthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-    final greeting = _greeting(l, now);
+    final greeting = _greeting(l, now, settings.userDisplayName);
 
     return Scaffold(
       appBar: AppBar(
@@ -117,11 +117,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  String _greeting(AppLocalizations l, DateTime now) {
+  String _greeting(AppLocalizations l, DateTime now, String? userName) {
     final hour = now.hour;
-    if (hour < 12) return l.homeGreetingMorning;
-    if (hour < 17) return l.homeGreetingAfternoon;
-    return l.homeGreetingEvening;
+    final timeGreeting = hour < 12
+        ? l.homeGreetingMorning
+        : hour < 17
+            ? l.homeGreetingAfternoon
+            : l.homeGreetingEvening;
+    // If the user has set a display name, append it as: "Good morning, Shehab"
+    // Otherwise, just use the time-based greeting.
+    final name = userName?.trim();
+    if (name == null || name.isEmpty) {
+      return timeGreeting;
+    }
+    return '$timeGreeting, $name';
   }
 
   Future<void> _openAddTransaction(BuildContext context) async {

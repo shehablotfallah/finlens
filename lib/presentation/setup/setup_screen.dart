@@ -4,15 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/finlens_theme.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
+import '../common/pin_pad.dart';
 
 /// Quick setup wizard that runs right after onboarding.
 /// Steps:
-///   1. Language
-///   2. Salary day
-///   3. Base currency
-///   4. Theme
-///   5. (Optional) PIN setup
-///   6. Summary & finish
+///   1. Name (optional)
+///   2. Language
+///   3. Salary day
+///   4. Base currency
+///   5. Theme
+///   6. (Optional) PIN setup
+///   7. Summary & finish
+///
+/// APP-LOCK SECURITY CONTRACT:
+/// App lock is NEVER enabled by setting `appLockEnabled = true` alone.
+/// It is only enabled AFTER a valid PIN has actually been created via
+/// `SecurityService.setPin(...)`. This prevents the impossible state
+/// of `appLockEnabled = true` + `PIN = null` that the previous
+/// implementation produced.
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
 
@@ -23,35 +32,39 @@ class SetupScreen extends ConsumerStatefulWidget {
 class _SetupScreenState extends ConsumerState<SetupScreen> {
   final PageController _pageCtrl = PageController();
   int _page = 0;
-  static const int _totalSteps = 6;
+  static const int _totalSteps = 7;
 
   // Form state
+  final TextEditingController _nameCtrl = TextEditingController();
   int _salaryDay = 1;
   String _baseCurrency = 'EGP';
   FinlensThemeMode _theme = FinlensThemeMode.system;
   Locale? _locale;
   bool _setupPin = false;
   bool _saving = false;
+  // Tracks whether a PIN was actually created during the security step.
+  // Only set to true after SecurityService.setPin() succeeds.
+  bool _pinCreated = false;
 
   @override
   void dispose() {
     _pageCtrl.dispose();
+    _nameCtrl.dispose();
     super.dispose();
   }
 
   bool _canProceed() {
+    // All steps have defaults or are optional — the user can always
+    // move forward. The actual "did the PIN get created?" check
+    // happens in _commit() (we won't enable app lock without a PIN).
     switch (_page) {
-      case 0: // language — always has a default
-        return true;
-      case 1: // salary day — always 1..28
-        return true;
-      case 2: // currency — always has a default
-        return true;
-      case 3: // theme — always has a default
-        return true;
-      case 4: // security — optional, always allowed
-        return true;
-      case 5: // finish
+      case 0: // name — optional
+      case 1: // language
+      case 2: // salary day
+      case 3: // currency
+      case 4: // theme
+      case 5: // security
+      case 6: // finish
         return true;
       default:
         return true;
@@ -88,9 +101,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   /// Applies the locale IMMEDIATELY when the user selects one on the
-  /// language step. This makes the rest of the wizard (steps 2-6)
-  /// already reflect the chosen language — fixing the bug where the
-  /// next screen stayed in English after selecting Arabic.
+  /// language step. This makes the rest of the wizard reflect the
+  /// chosen language — fixing the bug where the next screen stayed in
+  /// English after selecting Arabic.
   void _selectLocale(Locale? locale) {
     setState(() => _locale = locale);
     ref.read(appSettingsProvider.notifier).setLocale(locale);
@@ -102,15 +115,69 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     ref.read(appSettingsProvider.notifier).setThemeMode(mode);
   }
 
+  /// SECURITY CONTRACT: This method is called when the user toggles the
+  /// "Set up app lock" switch ON. It prompts the user to create + confirm
+  /// a PIN, then persists the PIN via SecurityService.setPin(). Only
+  /// after the PIN is actually created do we set `_setupPin = true`.
+  ///
+  /// If the user cancels the PIN dialog or the PINs don't match, we
+  /// revert the toggle to OFF — preventing the impossible state of
+  /// "app lock will be enabled but no PIN exists".
+  Future<void> _promptForPinCreation() async {
+    final l = AppLocalizations.of(context);
+    final first = await showPinEntryDialog(
+      context,
+      title: l.pinCreateTitle,
+      subtitle: l.setupSecurityPinNote,
+    );
+    if (first == null || first.length != 4) {
+      // User cancelled — revert the toggle.
+      setState(() => _setupPin = false);
+      return;
+    }
+    final second = await showPinEntryDialog(
+      context,
+      title: l.pinConfirmTitle,
+      subtitle: l.setupSecurityPinNote,
+    );
+    if (second == null || second != first) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.pinMismatch)),
+        );
+      }
+      // Mismatch — revert the toggle.
+      setState(() => _setupPin = false);
+      return;
+    }
+    // PINs match — actually persist the PIN.
+    try {
+      await ref.read(securityServiceProvider).setPin(first);
+      setState(() {
+        _setupPin = true;
+        _pinCreated = true;
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.errorUnknown)),
+        );
+      }
+      setState(() => _setupPin = false);
+    }
+  }
+
   Future<void> _commit() async {
     setState(() => _saving = true);
     final notifier = ref.read(appSettingsProvider.notifier);
     // Locale + theme are already persisted (we applied them immediately
     // on selection). Persist the rest here.
+    await notifier.setUserDisplayName(_nameCtrl.text);
     await notifier.setSalaryDay(_salaryDay);
     await notifier.setBaseCurrency(_baseCurrency);
-    if (_setupPin) {
-      // Mark app lock enabled; user will set PIN on first lock prompt.
+    // SECURITY: Only enable app lock if a PIN was actually created.
+    // This is the second line of defence against the impossible state.
+    if (_setupPin && _pinCreated) {
       await notifier.setAppLock(true);
     }
     await notifier.setSetupComplete();
@@ -166,6 +233,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
+                  _nameStep(l, theme),
                   _languageStep(l, theme),
                   _salaryStep(l, theme),
                   _currencyStep(l, theme),
@@ -191,7 +259,36 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   // -------------------------------------------------------------------------
-  // Step 1: Language
+  // Step 1: Name (optional)
+  // -------------------------------------------------------------------------
+  Widget _nameStep(AppLocalizations l, ThemeData theme) {
+    return _StepLayout(
+      icon: Icons.person_outline,
+      title: l.setupNameTitle,
+      subtitle: l.setupNameSubtitle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _nameCtrl,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: l.setupNameHint,
+              hintText: l.setupNameHint,
+              prefixIcon: const Icon(Icons.person_outline),
+              helperText: l.setupNameOptional,
+              border: const OutlineInputBorder(),
+            ),
+            maxLength: 30,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 2: Language
   // -------------------------------------------------------------------------
   Widget _languageStep(AppLocalizations l, ThemeData theme) {
     return _StepLayout(
@@ -380,15 +477,40 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       child: Column(
         children: [
           _OptionCard(
-            selected: _setupPin,
+            selected: _setupPin && _pinCreated,
             icon: Icons.shield_outlined,
             title: l.setupSecuritySetup,
-            subtitle: l.setupSecurityPinNote,
+            subtitle: _pinCreated ? l.setupSummaryOn : l.setupSecurityPinNote,
             trailing: Switch(
-              value: _setupPin,
-              onChanged: (v) => setState(() => _setupPin = v),
+              value: _setupPin && _pinCreated,
+              onChanged: (v) async {
+                if (v) {
+                  // Trigger PIN creation flow — _setupPin is set to true
+                  // ONLY if the user actually creates a PIN.
+                  setState(() => _setupPin = true);
+                  await _promptForPinCreation();
+                } else {
+                  // User turning off — just clear the local state. The
+                  // PIN itself stays in secure storage (in case the user
+                  // re-enables), and app lock won't be enabled.
+                  setState(() {
+                    _setupPin = false;
+                    _pinCreated = false;
+                  });
+                }
+              },
             ),
-            onTap: () => setState(() => _setupPin = !_setupPin),
+            onTap: () async {
+              if (!_setupPin || !_pinCreated) {
+                setState(() => _setupPin = true);
+                await _promptForPinCreation();
+              } else {
+                setState(() {
+                  _setupPin = false;
+                  _pinCreated = false;
+                });
+              }
+            },
           ),
           const SizedBox(height: 12),
           _OptionCard(
@@ -396,7 +518,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             icon: Icons.lock_open_outlined,
             title: l.setupSecuritySkip,
             subtitle: l.commonOptional,
-            onTap: () => setState(() => _setupPin = false),
+            onTap: () => setState(() {
+              _setupPin = false;
+              _pinCreated = false;
+            }),
           ),
         ],
       ),
@@ -421,38 +546,49 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           ),
           const SizedBox(height: 12),
           _SummaryRow(
+            label: l.setupSummaryName,
+            value: _nameCtrl.text.trim().isEmpty
+                ? l.setupSummaryNotSet
+                : _nameCtrl.text.trim(),
+            icon: Icons.person_outline,
+            onEdit: () => _goTo(0),
+            editLabel: l.setupEdit,
+          ),
+          _SummaryRow(
             label: l.setupSummaryLanguage,
             value: _localeLabel(l, _locale),
             icon: Icons.language_outlined,
-            onEdit: () => _goTo(0),
+            onEdit: () => _goTo(1),
             editLabel: l.setupEdit,
           ),
           _SummaryRow(
             label: l.setupSummarySalaryDay,
             value: '$_salaryDay',
             icon: Icons.calendar_month_outlined,
-            onEdit: () => _goTo(1),
+            onEdit: () => _goTo(2),
             editLabel: l.setupEdit,
           ),
           _SummaryRow(
             label: l.setupSummaryCurrency,
             value: _baseCurrency,
             icon: Icons.payments_outlined,
-            onEdit: () => _goTo(2),
+            onEdit: () => _goTo(3),
             editLabel: l.setupEdit,
           ),
           _SummaryRow(
             label: l.setupSummaryTheme,
             value: _themeLabel(l, _theme),
             icon: Icons.color_lens_outlined,
-            onEdit: () => _goTo(3),
+            onEdit: () => _goTo(4),
             editLabel: l.setupEdit,
           ),
           _SummaryRow(
             label: l.setupSummarySecurity,
-            value: _setupPin ? l.setupSummaryOn : l.setupSummaryOff,
+            value: (_setupPin && _pinCreated)
+                ? l.setupSummaryOn
+                : l.setupSummaryOff,
             icon: Icons.lock_outline,
-            onEdit: () => _goTo(4),
+            onEdit: () => _goTo(5),
             editLabel: l.setupEdit,
           ),
         ],

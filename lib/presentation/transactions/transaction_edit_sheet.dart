@@ -12,6 +12,18 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
 
 /// Bottom-sheet used for both quick-add and edit of a transaction.
+///
+/// SAVE FLOW (correct order):
+///   1. Validate (amount > 0, currency set, category set)
+///   2. Disable Save button (prevent duplicate submission)
+///   3. Show inline loading on the Save button
+///   4. Await repository write (DB INSERT/UPDATE)
+///   5. On success → invalidate providers → snackbar → pop
+///   6. On failure → keep user on form → re-enable Save → show localized error
+///
+/// CRITICAL: _saving is ALWAYS reset in a `finally` block so the UI
+/// can never get stuck in a loading state, even if an unexpected
+/// exception escapes.
 class TransactionEditSheet extends ConsumerStatefulWidget {
   const TransactionEditSheet({super.key, this.prefill});
   final Transaction? prefill;
@@ -35,6 +47,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
 
   bool _isEdit = false;
   bool _saving = false;
+  String? _amountError;
 
   @override
   void initState() {
@@ -42,8 +55,8 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     final p = widget.prefill;
     _isEdit = p?.id.isNotEmpty == true;
     _type = p?.type ?? TransactionType.expense;
-    _amountCtrl =
-        TextEditingController(text: p?.amount == 0 ? '' : p?.amount.toString());
+    _amountCtrl = TextEditingController(
+        text: p?.amount == 0 || p?.amount == null ? '' : p!.amount.toString());
     _noteCtrl = TextEditingController(text: p?.note ?? '');
     _date = p?.date ?? DateTime.now();
     _categoryId = p?.categoryId ??
@@ -54,7 +67,14 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     _recurring = p?.isRecurring ?? false;
     _interval = p?.recurrenceInterval ?? RecurrenceInterval.monthly;
     _customDays = p?.recurrenceCustomDays ?? 14;
-    _reminderDays = p?.reminderDaysBefore ?? AppConstants.defaultReminderDaysBefore;
+    _reminderDays =
+        p?.reminderDaysBefore ?? AppConstants.defaultReminderDaysBefore;
+    // Clear amount error as the user types.
+    _amountCtrl.addListener(() {
+      if (_amountError != null && _amountCtrl.text.trim().isNotEmpty) {
+        setState(() => _amountError = null);
+      }
+    });
   }
 
   @override
@@ -64,72 +84,120 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     super.dispose();
   }
 
+  /// Validates the form and returns true if it can be saved.
+  bool _validate(AppLocalizations l) {
+    final raw = _amountCtrl.text.trim();
+    final amount = double.tryParse(raw);
+    if (raw.isEmpty) {
+      setState(() => _amountError = l.errorAmountRequired);
+      return false;
+    }
+    if (amount == null || amount <= 0) {
+      setState(() => _amountError = l.errorAmountInvalid);
+      return false;
+    }
+    setState(() => _amountError = null);
+    return true;
+  }
+
   Future<void> _save() async {
     final l = AppLocalizations.of(context);
-    final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.errorAmountRequired)),
-      );
-      return;
-    }
+    if (_saving) return; // Prevent duplicate submission
+    if (!_validate(l)) return;
+
+    // Disable the button + show loading.
     setState(() => _saving = true);
 
-    final settings = ref.read(appSettingsProvider);
-    final rateProv = ref.read(exchangeRateProvider);
-    rateProv.setInitialRate('USD', settings.usdToEgpRate);
-    final rate = await rateProv.rateFor(_currency);
-    final base = _currency == 'EGP' ? amount : amount * rate;
+    try {
+      final amount = double.parse(_amountCtrl.text.trim());
+      final settings = ref.read(appSettingsProvider);
+      final rateProv = ref.read(exchangeRateProvider);
+      rateProv.setInitialRate('USD', settings.usdToEgpRate);
+      final rate = await rateProv.rateFor(_currency);
+      final base = _currency == 'EGP' ? amount : amount * rate;
 
-    final tx = Transaction(
-      id: widget.prefill?.id ?? const Uuid().v4(),
-      type: _type,
-      amount: amount,
-      currency: _currency,
-      amountInBase: base,
-      exchangeRateAtTime: rate,
-      categoryId: _categoryId,
-      date: _date,
-      note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-      isRecurring: _recurring,
-      recurrenceInterval: _recurring ? _interval : null,
-      recurrenceCustomDays:
-          _recurring && _interval == RecurrenceInterval.custom ? _customDays : null,
-      reminderDaysBefore: _recurring ? _reminderDays : null,
-      createdAt: widget.prefill?.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    final repo = await ref.read(transactionRepositoryProvider.future);
-    if (_isEdit) {
-      await repo.update(tx);
-    } else {
-      await repo.insert(tx);
-    }
-
-    // If recurring, schedule a reminder
-    if (tx.isRecurring) {
-      final notif = ref.read(notificationServiceProvider);
-      final id = tx.hashCode & 0x7FFFFFFF;
-      await notif.scheduleBillReminder(
-        id: id,
-        title: '${_type == TransactionType.expense ? l.txTypeExpense : l.txTypeIncome} • ${Format.money(tx.amount, tx.currency)}',
-        body: tx.note ?? '',
-        dueDate: tx.date,
-        daysBefore: tx.reminderDaysBefore ?? 2,
+      final tx = Transaction(
+        id: widget.prefill?.id ?? const Uuid().v4(),
+        type: _type,
+        amount: amount,
+        currency: _currency,
+        amountInBase: base,
+        exchangeRateAtTime: rate,
+        categoryId: _categoryId,
+        date: _date,
+        note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+        isRecurring: _recurring,
+        recurrenceInterval: _recurring ? _interval : null,
+        recurrenceCustomDays: _recurring && _interval == RecurrenceInterval.custom
+            ? _customDays
+            : null,
+        reminderDaysBefore: _recurring ? _reminderDays : null,
+        createdAt: widget.prefill?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
       );
-    }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_isEdit ? l.txUpdated : l.txAdded)),
-      );
-      Navigator.of(context).pop();
+      final repo = await ref.read(transactionRepositoryProvider.future);
+      if (_isEdit) {
+        await repo.update(tx);
+      } else {
+        await repo.insert(tx);
+      }
+
+      // If recurring, schedule a reminder (best-effort; failure here
+      // shouldn't fail the save).
+      if (tx.isRecurring) {
+        try {
+          final notif = ref.read(notificationServiceProvider);
+          final id = tx.hashCode & 0x7FFFFFFF;
+          await notif.scheduleBillReminder(
+            id: id,
+            title:
+                '${_type == TransactionType.expense ? l.txTypeExpense : l.txTypeIncome} • ${Format.money(tx.amount, tx.currency)}',
+            body: tx.note ?? '',
+            dueDate: tx.date,
+            daysBefore: tx.reminderDaysBefore ?? 2,
+          );
+        } catch (_) {
+          // Notification scheduling failure is non-fatal.
+        }
+      }
+
+      // Force refresh of any stream-based providers so the dashboard /
+      // transactions list reflects the new row immediately.
+      ref.invalidate(statsRepositoryProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_isEdit ? l.txUpdated : l.txAdded)),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      // Keep the user on the form so they can retry. Show a clear,
+      // localized error — never expose technical details (SQL errors,
+      // stack traces) to the user.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l.errorDb),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      // ALWAYS clear the loading state, even if an unexpected exception
+      // escaped the try block. This prevents the UI from being stuck
+      // in loading forever.
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
   Future<void> _delete() async {
     final l = AppLocalizations.of(context);
+    if (widget.prefill == null) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -149,11 +217,25 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
       ),
     );
     if (confirmed != true) return;
-    final repo = await ref.read(transactionRepositoryProvider.future);
-    await repo.delete(widget.prefill!.id);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.txDeleted)));
-      Navigator.of(context).pop();
+
+    setState(() => _saving = true);
+    try {
+      final repo = await ref.read(transactionRepositoryProvider.future);
+      await repo.delete(widget.prefill!.id);
+      ref.invalidate(statsRepositoryProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l.txDeleted)));
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.errorDb)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -191,8 +273,9 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                 ),
                 if (_isEdit)
                   IconButton(
-                    onPressed: _delete,
-                    icon: const Icon(Icons.delete_outline, color: FinlensColors.expense),
+                    onPressed: _saving ? null : _delete,
+                    icon: const Icon(Icons.delete_outline,
+                        color: FinlensColors.expense),
                   ),
               ],
             ),
@@ -211,11 +294,12 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                 ),
               ],
               selected: {_type},
-              onSelectionChanged: (s) => setState(() => _type = s.first),
+              onSelectionChanged: _saving ? null : (s) => setState(() => _type = s.first),
             ),
             const SizedBox(height: 16),
             // Amount + currency
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   flex: 3,
@@ -232,7 +316,9 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                       labelText: l.commonAmount,
                       hintText: l.txHintAmount,
                       prefixIcon: const Icon(Icons.attach_money),
+                      errorText: _amountError,
                     ),
+                    enabled: !_saving,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -245,7 +331,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                       DropdownMenuItem(value: 'EGP', child: Text('EGP')),
                       DropdownMenuItem(value: 'USD', child: Text('USD')),
                     ],
-                    onChanged: (v) => setState(() => _currency = v!),
+                    onChanged: _saving ? null : (v) => setState(() => _currency = v!),
                   ),
                 ),
               ],
@@ -266,7 +352,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                   label: Text(_categoryLabel(l, c.id)),
                   avatar: Icon(c.icon, color: c.colorValue, size: 18),
                   selected: selected,
-                  onSelected: (_) => setState(() => _categoryId = c.id),
+                  onSelected: _saving ? null : (_) => setState(() => _categoryId = c.id),
                 );
               }).toList(),
             ),
@@ -274,6 +360,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
             TextField(
               controller: _noteCtrl,
               maxLines: 2,
+              enabled: !_saving,
               decoration: InputDecoration(
                 labelText: l.commonNote,
                 hintText: l.txHintNote,
@@ -282,15 +369,17 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
             ),
             const SizedBox(height: 12),
             InkWell(
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _date,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null) setState(() => _date = picked);
-              },
+              onTap: _saving
+                  ? null
+                  : () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _date,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) setState(() => _date = picked);
+                    },
               child: InputDecorator(
                 decoration: InputDecoration(
                   labelText: l.commonDate,
@@ -305,7 +394,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
             const SizedBox(height: 12),
             SwitchListTile(
               value: _recurring,
-              onChanged: (v) => setState(() => _recurring = v),
+              onChanged: _saving ? null : (v) => setState(() => _recurring = v),
               title: Text(l.txRecurringLabel),
             ),
             if (_recurring) ...[
@@ -314,42 +403,46 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
               const SizedBox(height: 4),
               SegmentedButton<RecurrenceInterval>(
                 segments: [
-                  ButtonSegment(value: RecurrenceInterval.weekly, label: Text(l.txIntervalWeekly)),
-                  ButtonSegment(value: RecurrenceInterval.monthly, label: Text(l.txIntervalMonthly)),
-                  ButtonSegment(value: RecurrenceInterval.custom, label: Text(l.txIntervalCustom)),
+                  ButtonSegment(
+                      value: RecurrenceInterval.weekly,
+                      label: Text(l.txIntervalWeekly)),
+                  ButtonSegment(
+                      value: RecurrenceInterval.monthly,
+                      label: Text(l.txIntervalMonthly)),
+                  ButtonSegment(
+                      value: RecurrenceInterval.custom,
+                      label: Text(l.txIntervalCustom)),
                 ],
                 selected: {_interval},
-                onSelectionChanged: (s) => setState(() => _interval = s.first),
+                onSelectionChanged:
+                    _saving ? null : (s) => setState(() => _interval = s.first),
               ),
               if (_interval == RecurrenceInterval.custom) ...[
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: '$_customDays',
-                        decoration: InputDecoration(labelText: l.txIntervalCustom),
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) =>
-                            _customDays = int.tryParse(v) ?? _customDays,
-                      ),
-                    ),
-                  ],
+                TextFormField(
+                  initialValue: '$_customDays',
+                  decoration: InputDecoration(labelText: l.txIntervalCustom),
+                  keyboardType: TextInputType.number,
+                  enabled: !_saving,
+                  onChanged: (v) =>
+                      _customDays = int.tryParse(v) ?? _customDays,
                 ),
               ],
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(
-                    child: Text(l.txReminderDays),
-                  ),
+                  Expanded(child: Text(l.txReminderDays)),
                   DropdownButton<int>(
                     value: _reminderDays,
                     items: [0, 1, 2, 3, 5, 7]
-                        .map((d) =>
-                            DropdownMenuItem(value: d, child: Text('$d')))
+                        .map((d) => DropdownMenuItem(
+                              value: d,
+                              child: Text('$d'),
+                            ))
                         .toList(),
-                    onChanged: (v) => setState(() => _reminderDays = v ?? 2),
+                    onChanged: _saving
+                        ? null
+                        : (v) => setState(() => _reminderDays = v ?? 2),
                   ),
                 ],
               ),

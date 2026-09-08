@@ -81,6 +81,11 @@
       "total": {"type": "int"}
     }
   },
+  "setupNameTitle": "What should we call you?",
+  "setupNameSubtitle": "We'll use this to greet you on the home screen. You can change it later in Settings.",
+  "setupNameHint": "Your preferred name",
+  "setupNameOptional": "Optional — leave empty to skip",
+  "setupNameSkip": "Skip",
   "setupLanguageEnDescription": "Use English everywhere in the app",
   "setupLanguageArDescription": "استخدم العربية في كل أنحاء التطبيق",
   "setupLanguageSystemDescription": "Match your device's language",
@@ -92,7 +97,9 @@
   "setupThemeAutoDescription": "Follow your device's setting",
   "setupSecurityDescription": "Protect your data with a PIN. You can add biometrics later from Settings.",
   "setupSecurityPinNote": "You'll set your PIN on the next screen",
+  "setupSecurityCreatingPin": "Creating PIN…",
   "setupFinishSummary": "Here's a summary of your choices:",
+  "setupSummaryName": "Name",
   "setupSummaryLanguage": "Language",
   "setupSummarySalaryDay": "Salary day",
   "setupSummaryCurrency": "Currency",
@@ -100,6 +107,7 @@
   "setupSummarySecurity": "App lock",
   "setupSummaryOn": "On",
   "setupSummaryOff": "Off",
+  "setupSummaryNotSet": "Not set",
   "setupEdit": "Edit",
 
   "homeGreetingMorning": "Good morning",

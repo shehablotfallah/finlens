@@ -5,12 +5,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../core/constants/app_constants.dart';
 
-/// Full About screen — app info, features, privacy, developer section,
-/// and contact links. Replaces the previous simple AlertDialog.
+/// Full About screen — explains what Finlens is, the privacy philosophy,
+/// and a concise developer credit at the bottom.
 ///
-/// Opens external links (Facebook profile, mailto:) using url_launcher.
-/// All strings are localized. Layout is RTL-friendly via built-in
-/// Material widget mirroring.
+/// DESIGN PHILOSOPHY:
+///   This is NOT a developer CV / portfolio page. The application is
+///   the focus. The developer section is intentionally minimal:
+///   name, role, and contact links (Facebook + email).
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
@@ -19,10 +20,7 @@ class AboutScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final uri = Uri.parse(url);
     try {
-      final ok = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!ok && context.mounted) {
         messenger.showSnackBar(
           SnackBar(content: Text(l.aboutFailedToOpen)),
@@ -72,193 +70,151 @@ class AboutScreen extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l.settingsAbout),
-      ),
+      appBar: AppBar(title: Text(l.settingsAbout)),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
           children: [
-            // App icon + name + version
-            _AppHeader(theme: theme, l: l),
+            // App identity
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Icon(
+                      Icons.savings_outlined,
+                      size: 48,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppConstants.appName,
+                    style: theme.textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    l.aboutAppTagline,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${l.aboutVersion} ${AppConstants.appVersion}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // What is Finlens
+            Text(
+              l.aboutAppDescription,
+              style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
+              textAlign: TextAlign.start,
+            ),
             const SizedBox(height: 24),
 
-            // What is it?
-            _Section(
-              theme: theme,
-              icon: Icons.savings_outlined,
-              title: l.aboutAppLabel,
-              children: [
-                Text(
-                  l.aboutAppTagline,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l.aboutAppDescription,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      '${l.aboutVersion}: ',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    Text(
-                      AppConstants.appVersion,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+            // Privacy section
+            _PrivacyBanner(theme: theme, l: l),
+            const SizedBox(height: 32),
 
-            // Features
-            _Section(
-              theme: theme,
-              icon: Icons.checklist_outlined,
-              title: l.aboutFeaturesTitle,
-              children: [
-                Text(
-                  l.aboutFeaturesBody,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    height: 1.6,
-                  ),
-                ),
-              ],
+            // Developer credit (intentionally minimal)
+            Text(
+              l.aboutDeveloperTitle,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
             ),
-            const SizedBox(height: 16),
-
-            // Privacy
-            _Section(
-              theme: theme,
-              icon: Icons.lock_outline,
-              title: l.aboutPrivacyTitle,
+            const SizedBox(height: 12),
+            Row(
               children: [
-                Text(
-                  l.aboutPrivacyBody,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.5,
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.person_outline,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Developer
-            _Section(
-              theme: theme,
-              icon: Icons.person_outline,
-              title: l.aboutDeveloperTitle,
-              children: [
-                _InfoRow(
-                  label: l.aboutDeveloperRole,
-                  value: AppConstants.developerRole,
-                  theme: theme,
-                ),
-                const Divider(height: 24),
-                _InfoRow(
-                  label: l.aboutDeveloperEducation,
-                  value: AppConstants.education,
-                  theme: theme,
-                ),
-                const Divider(height: 24),
-                _InfoRow(
-                  label: l.aboutDeveloperGraduated,
-                  value: AppConstants.graduationYear,
-                  theme: theme,
-                ),
-                const Divider(height: 24),
-                Text(
-                  l.aboutTechStackTitle,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: AppConstants.techStack
-                      .map(
-                        (t) => Chip(
-                          label: Text(t),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                          labelStyle: theme.textTheme.labelSmall,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppConstants.developer,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
-                      )
-                      .toList(),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        AppConstants.developerRole,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Contact & social
-            _Section(
+            // Contact links
+            _ContactRow(
               theme: theme,
-              icon: Icons.alternate_email,
-              title: l.aboutContactTitle,
-              children: [
-                _ContactRow(
-                  theme: theme,
-                  icon: Icons.facebook_outlined,
-                  label: l.aboutContactFacebook,
-                  value: AppConstants.developerHandle,
-                  onTap: () => _openUrl(context, AppConstants.facebookUrl),
-                  actionLabel: l.aboutOpenInBrowser,
-                ),
-                const Divider(height: 24),
-                _ContactRow(
-                  theme: theme,
-                  icon: Icons.alternate_email,
-                  label: l.aboutContactHandle,
-                  value: AppConstants.developerHandle,
-                  onTap: () => _openUrl(
-                    context,
-                    'https://github.com/${AppConstants.developerHandle.replaceAll('@', '')}',
-                  ),
-                  actionLabel: l.aboutOpenInBrowser,
-                ),
-                const Divider(height: 24),
-                _ContactRow(
-                  theme: theme,
-                  icon: Icons.email_outlined,
-                  label: l.aboutContactEmail,
-                  value: AppConstants.supportEmail,
-                  onTap: () => _openEmail(context, AppConstants.supportEmail),
-                  actionLabel: l.aboutSendEmail,
-                  secondaryAction: _CopyAction(
-                    label: l.aboutCopyEmail,
-                    onTap: () =>
-                        _copyEmail(context, AppConstants.supportEmail),
-                  ),
-                ),
-              ],
+              icon: Icons.facebook_outlined,
+              label: l.aboutContactFacebook,
+              value: AppConstants.developerHandle,
+              onTap: () => _openUrl(context, AppConstants.facebookUrl),
+              actionLabel: l.aboutOpenInBrowser,
             ),
-            const SizedBox(height: 16),
-
-            // Footer
+            const SizedBox(height: 8),
+            _ContactRow(
+              theme: theme,
+              icon: Icons.email_outlined,
+              label: l.aboutContactEmail,
+              value: AppConstants.supportEmail,
+              onTap: () => _openEmail(context, AppConstants.supportEmail),
+              actionLabel: l.aboutSendEmail,
+              secondaryLabel: l.aboutCopyEmail,
+              secondaryOnTap: () =>
+                  _copyEmail(context, AppConstants.supportEmail),
+            ),
+            const SizedBox(height: 32),
             Center(
               child: Text(
                 l.aboutYearBuilt,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -268,130 +224,57 @@ class AboutScreen extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Reusable widgets
-// ---------------------------------------------------------------------------
-
-class _AppHeader extends StatelessWidget {
-  const _AppHeader({required this.theme, required this.l});
+class _PrivacyBanner extends StatelessWidget {
+  const _PrivacyBanner({required this.theme, required this.l});
   final ThemeData theme;
   final AppLocalizations l;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 96,
-          height: 96,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Icon(
-            Icons.savings_outlined,
-            size: 56,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.lock_outline,
+            size: 20,
             color: theme.colorScheme.primary,
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          AppConstants.appName,
-          style: theme.textTheme.displaySmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l.aboutAppTagline,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.theme,
-    required this.icon,
-    required this.title,
-    required this.children,
-  });
-  final ThemeData theme;
-  final IconData icon;
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 20, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
                 Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  l.aboutPrivacyTitle,
+                  style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l.aboutPrivacyBody,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.5,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    required this.theme,
-  });
-  final String label;
-  final String value;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CopyAction {
-  const _CopyAction({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
 }
 
 class _ContactRow extends StatelessWidget {
@@ -402,7 +285,8 @@ class _ContactRow extends StatelessWidget {
     required this.value,
     required this.onTap,
     required this.actionLabel,
-    this.secondaryAction,
+    this.secondaryLabel,
+    this.secondaryOnTap,
   });
   final ThemeData theme;
   final IconData icon;
@@ -410,20 +294,21 @@ class _ContactRow extends StatelessWidget {
   final String value;
   final VoidCallback onTap;
   final String actionLabel;
-  final _CopyAction? secondaryAction;
+  final String? secondaryLabel;
+  final VoidCallback? secondaryOnTap;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 20, color: theme.colorScheme.primary),
+          child: Icon(icon, size: 18, color: theme.colorScheme.primary),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -439,7 +324,7 @@ class _ContactRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: theme.textTheme.bodyLarge?.copyWith(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -450,10 +335,10 @@ class _ContactRow extends StatelessWidget {
           onPressed: onTap,
           child: Text(actionLabel),
         ),
-        if (secondaryAction != null)
+        if (secondaryLabel != null && secondaryOnTap != null)
           TextButton(
-            onPressed: secondaryAction!.onTap,
-            child: Text(secondaryAction!.label),
+            onPressed: secondaryOnTap,
+            child: Text(secondaryLabel!),
           ),
       ],
     );

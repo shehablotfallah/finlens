@@ -112,6 +112,7 @@ final insightServiceProvider =
 
 class AppSettings {
   AppSettings({
+    this.userDisplayName,
     this.locale,
     required this.themeMode,
     required this.salaryDay,
@@ -126,6 +127,9 @@ class AppSettings {
     required this.hintsShown,
   });
 
+  /// User's preferred display name (used for dashboard greeting).
+  /// Nullable — if null/empty, the dashboard shows a generic greeting.
+  final String? userDisplayName;
   final Locale? locale;
   final FinlensThemeMode themeMode;
   final int salaryDay;
@@ -140,6 +144,8 @@ class AppSettings {
   final Set<String> hintsShown;
 
   AppSettings copyWith({
+    String? userDisplayName,
+    bool clearUserDisplayName = false,
     Locale? locale,
     FinlensThemeMode? themeMode,
     int? salaryDay,
@@ -154,6 +160,9 @@ class AppSettings {
     Set<String>? hintsShown,
   }) {
     return AppSettings(
+      userDisplayName: clearUserDisplayName
+          ? null
+          : (userDisplayName ?? this.userDisplayName),
       locale: locale ?? this.locale,
       themeMode: themeMode ?? this.themeMode,
       salaryDay: salaryDay ?? this.salaryDay,
@@ -170,6 +179,7 @@ class AppSettings {
   }
 
   static AppSettings get defaults => AppSettings(
+        userDisplayName: null,
         locale: null,
         themeMode: FinlensThemeMode.system,
         salaryDay: 1,
@@ -185,6 +195,7 @@ class AppSettings {
       );
 
   Map<String, dynamic> toJson() => {
+        'userDisplayName': userDisplayName,
         'locale': locale?.languageCode,
         'themeMode': themeMode.name,
         'salaryDay': salaryDay,
@@ -201,6 +212,7 @@ class AppSettings {
 
   factory AppSettings.fromJson(Map<String, dynamic> j) {
     return AppSettings(
+      userDisplayName: j['userDisplayName'] as String?,
       locale: j['locale'] == null ? null : Locale(j['locale'] as String),
       themeMode: FinlensThemeMode.values
           .byName(j['themeMode'] as String? ?? 'system'),
@@ -244,6 +256,16 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> _persist() async {
     await _prefs.setString(_kSettingsJsonKey, jsonEncode(state.toJson()));
+  }
+
+  Future<void> setUserDisplayName(String? name) async {
+    final trimmed = name?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      state = state.copyWith(clearUserDisplayName: true);
+    } else {
+      state = state.copyWith(userDisplayName: trimmed);
+    }
+    await _persist();
   }
 
   Future<void> setLocale(Locale? locale) async {

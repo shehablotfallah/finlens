@@ -26,6 +26,15 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             _SectionTitle(label: l.settingsAppearance),
             ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: Text(l.setupSummaryName),
+              subtitle: Text(settings.userDisplayName ??
+                  l.setupSummaryNotSet),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showNameEditor(context, ref,
+                  settings.userDisplayName ?? ''),
+            ),
+            ListTile(
               leading: const Icon(Icons.translate_outlined),
               title: Text(l.settingsLanguage),
               subtitle: Text(_localeLabel(l, settings.locale)),
@@ -205,6 +214,43 @@ class SettingsScreen extends ConsumerWidget {
       300 => l.settingsAutoLock5m,
       _ => '${seconds}s',
     };
+  }
+
+  Future<void> _showNameEditor(
+      BuildContext context, WidgetRef ref, String current) async {
+    final l = AppLocalizations.of(context);
+    final ctrl = TextEditingController(text: current);
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.setupSummaryName),
+        content: TextField(
+          controller: ctrl,
+          textCapitalization: TextCapitalization.words,
+          maxLength: 30,
+          decoration: InputDecoration(
+            labelText: l.setupNameHint,
+            hintText: l.setupNameHint,
+            helperText: l.setupNameOptional,
+            border: const OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text(l.commonSave),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) {
+      await ref.read(appSettingsProvider.notifier).setUserDisplayName(picked);
+    }
   }
 
   void _showLocalePicker(BuildContext context, WidgetRef ref) {
