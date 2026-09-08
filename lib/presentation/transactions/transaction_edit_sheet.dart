@@ -10,6 +10,7 @@ import '../../core/utils/format.dart';
 import '../../domain/entities/transaction.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
+import '../common/inline_error_banner.dart';
 
 /// Bottom-sheet used for both quick-add and edit of a transaction.
 ///
@@ -48,6 +49,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
   bool _isEdit = false;
   bool _saving = false;
   String? _amountError;
+  String? _dbError;
 
   @override
   void initState() {
@@ -105,8 +107,11 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     if (_saving) return; // Prevent duplicate submission
     if (!_validate(l)) return;
 
-    // Disable the button + show loading.
-    setState(() => _saving = true);
+    // Clear any previous DB error.
+    setState(() {
+      _saving = true;
+      _dbError = null;
+    });
 
     try {
       final amount = double.parse(_amountCtrl.text.trim());
@@ -167,22 +172,19 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
       ref.invalidate(statsRepositoryProvider);
 
       if (mounted) {
+        // Success → snackbar (lightweight transient feedback is OK here)
+        // then navigate away.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isEdit ? l.txUpdated : l.txAdded)),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
-      // Keep the user on the form so they can retry. Show a clear,
-      // localized error — never expose technical details (SQL errors,
-      // stack traces) to the user.
+      // Database/validation failure → show INLINE error banner above
+      // the Save button (NOT a transient SnackBar). The user stays on
+      // the form with their data preserved so they can retry.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l.errorDb),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        setState(() => _dbError = l.errorSaveTransactionBody);
       }
     } finally {
       // ALWAYS clear the loading state, even if an unexpected exception
@@ -218,7 +220,10 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     );
     if (confirmed != true) return;
 
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _dbError = null;
+    });
     try {
       final repo = await ref.read(transactionRepositoryProvider.future);
       await repo.delete(widget.prefill!.id);
@@ -230,9 +235,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.errorDb)),
-        );
+        setState(() => _dbError = l.errorSaveTransactionBody);
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -448,6 +451,18 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
               ),
             ],
             const SizedBox(height: 20),
+            // Inline error banner — shown only when a DB error occurs.
+            // NOT a SnackBar: this stays visible until the user retries
+            // or dismisses it.
+            if (_dbError != null) ...[
+              InlineErrorBanner(
+                message: _dbError!,
+                onRetry: _save,
+                retryLabel: l.errorRetry,
+                onDismiss: () => setState(() => _dbError = null),
+              ),
+              const SizedBox(height: 12),
+            ],
             FilledButton(
               onPressed: _saving ? null : _save,
               child: _saving

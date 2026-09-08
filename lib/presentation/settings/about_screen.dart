@@ -11,7 +11,15 @@ import '../../core/constants/app_constants.dart';
 /// DESIGN PHILOSOPHY:
 ///   This is NOT a developer CV / portfolio page. The application is
 ///   the focus. The developer section is intentionally minimal:
-///   name, role, and contact links (Facebook + email).
+///   name, role, and contact links (Facebook, LinkedIn, WhatsApp, email).
+///
+/// VISUAL HIERARCHY:
+///   1. App identity (logo, name, tagline, version)
+///   2. Short description
+///   3. Privacy banner
+///   4. Contact links (4 polished cards)
+///   5. Developer credit (name + role)
+///   6. Footer ("Privacy-first. Local-first.")
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
@@ -73,26 +81,27 @@ class AboutScreen extends StatelessWidget {
       appBar: AppBar(title: Text(l.settingsAbout)),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
           children: [
             // App identity
             Center(
               child: Column(
                 children: [
+                  // Logo
                   Container(
-                    width: 88,
-                    height: 88,
+                    width: 96,
+                    height: 96,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(24),
                     ),
                     child: Icon(
                       Icons.savings_outlined,
-                      size: 48,
+                      size: 52,
                       color: theme.colorScheme.primary,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Text(
                     AppConstants.appName,
                     style: theme.textTheme.displaySmall?.copyWith(
@@ -107,10 +116,10 @@ class AboutScreen extends StatelessWidget {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: 12,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
@@ -130,21 +139,21 @@ class AboutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // What is Finlens
+            // Short description
             Text(
               l.aboutAppDescription,
               style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
-              textAlign: TextAlign.start,
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // Privacy section
+            // Privacy banner
             _PrivacyBanner(theme: theme, l: l),
             const SizedBox(height: 32),
 
-            // Developer credit (intentionally minimal)
+            // Contact links grid (2x2)
             Text(
-              l.aboutDeveloperTitle,
+              l.aboutContactTitle,
               style: theme.textTheme.labelLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
@@ -154,67 +163,97 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Icon(
-                    Icons.person_outline,
-                    color: theme.colorScheme.primary,
+                Expanded(
+                  child: _ContactCard(
+                    theme: theme,
+                    icon: Icons.facebook_outlined,
+                    label: l.aboutContactFacebook,
+                    color: const Color(0xFF1877F2),
+                    onTap: () =>
+                        _openUrl(context, AppConstants.facebookUrl),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AppConstants.developer,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        AppConstants.developerRole,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                  child: _ContactCard(
+                    theme: theme,
+                    icon: Icons.business_center_outlined,
+                    label: l.aboutContactLinkedIn,
+                    color: const Color(0xFF0A66C2),
+                    onTap: () =>
+                        _openUrl(context, AppConstants.linkedInUrl),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _ContactCard(
+                    theme: theme,
+                    icon: Icons.chat_outlined,
+                    label: l.aboutContactWhatsApp,
+                    color: const Color(0xFF25D366),
+                    onTap: () =>
+                        _openUrl(context, AppConstants.whatsappUrl),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ContactCard(
+                    theme: theme,
+                    icon: Icons.email_outlined,
+                    label: l.aboutContactEmail,
+                    color: theme.colorScheme.primary,
+                    onTap: () =>
+                        _openEmail(context, AppConstants.supportEmail),
+                    onLongPress: () =>
+                        _copyEmail(context, AppConstants.supportEmail),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 36),
 
-            // Contact links
-            _ContactRow(
-              theme: theme,
-              icon: Icons.facebook_outlined,
-              label: l.aboutContactFacebook,
-              value: AppConstants.developerHandle,
-              onTap: () => _openUrl(context, AppConstants.facebookUrl),
-              actionLabel: l.aboutOpenInBrowser,
+            // Developer credit
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    l.aboutMadeBy,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    AppConstants.developer,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l.aboutSoftwareEngineer,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            _ContactRow(
-              theme: theme,
-              icon: Icons.email_outlined,
-              label: l.aboutContactEmail,
-              value: AppConstants.supportEmail,
-              onTap: () => _openEmail(context, AppConstants.supportEmail),
-              actionLabel: l.aboutSendEmail,
-              secondaryLabel: l.aboutCopyEmail,
-              secondaryOnTap: () =>
-                  _copyEmail(context, AppConstants.supportEmail),
-            ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            // Footer
             Center(
               child: Text(
-                l.aboutYearBuilt,
+                l.aboutLocalFirstFooter,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -277,70 +316,55 @@ class _PrivacyBanner extends StatelessWidget {
   }
 }
 
-class _ContactRow extends StatelessWidget {
-  const _ContactRow({
+class _ContactCard extends StatelessWidget {
+  const _ContactCard({
     required this.theme,
     required this.icon,
     required this.label,
-    required this.value,
+    required this.color,
     required this.onTap,
-    required this.actionLabel,
-    this.secondaryLabel,
-    this.secondaryOnTap,
+    this.onLongPress,
   });
   final ThemeData theme;
   final IconData icon;
   final String label;
-  final String value;
+  final Color color;
   final VoidCallback onTap;
-  final String actionLabel;
-  final String? secondaryLabel;
-  final VoidCallback? secondaryOnTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
           ),
-          child: Icon(icon, size: 18, color: theme.colorScheme.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(icon, size: 28, color: color),
+              const SizedBox(height: 8),
               Text(
                 label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: theme.textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
         ),
-        TextButton(
-          onPressed: onTap,
-          child: Text(actionLabel),
-        ),
-        if (secondaryLabel != null && secondaryOnTap != null)
-          TextButton(
-            onPressed: secondaryOnTap,
-            child: Text(secondaryLabel!),
-          ),
-      ],
+      ),
     );
   }
 }

@@ -80,12 +80,12 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
   }
 
   void _onKey(String digit) async {
-    if (_input.length >= 4) return;
+    if (_input.length >= 6) return;
     setState(() {
       _input.write(digit);
       _error = false;
     });
-    if (_input.length == 4) {
+    if (_input.length == 6) {
       final pin = _input.toString();
       // Clear immediately so the dots animate off.
       setState(() {});
@@ -148,7 +148,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (i) {
+                  children: List.generate(6, (i) {
                     final filled = i < _input.length;
                     return Container(
                       width: 16,

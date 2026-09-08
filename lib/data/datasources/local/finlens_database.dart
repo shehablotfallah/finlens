@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -99,16 +101,31 @@ class FinlensDatabase extends _$FinlensDatabase {
 
 /// Opens the Drift database, encrypting the SQLite file using SQLCipher.
 ///
-/// Implementation notes:
-///   1. `sqlcipher_flutter_libs` (a dep in pubspec) ships a drop-in native
-///      binary that replaces the default libsqlite3 on Android with a build
-///      that understands `PRAGMA key`. Drift's NativeDatabase picks it up
-///      automatically through the `sqlite3_flutter_libs` initializer.
-///   2. The passphrase is generated once and stored inside the Android
-///      Keystore via `flutter_secure_storage` (Android Keystore-backed) —
-///      NEVER in plaintext SharedPreferences.
-///   3. `PRAGMA cipher_compatibility = 4` ensures the file format matches
-///      SQLCipher 4.x (the variant shipped by `sqlcipher_flutter_libs`).
+/// ROOT CAUSE OF PREVIOUS "Database error":
+/// -----------------------------------------
+/// The previous implementation called `PRAGMA cipher_compatibility = 4;`
+/// after `PRAGMA key`. This PRAGMA is meant for opening databases created
+/// with older SQLCipher versions (1/2/3) using a newer SQLCipher build.
+/// `sqlcipher_flutter_libs` 0.6.x ships SQLCipher 4 natively, so:
+///
+///   - For a NEW database (first launch): the file is created with
+///     SQLCipher 4 defaults. Setting `cipher_compatibility = 4` is a
+///     no-op (already 4) but in some plugin versions it triggers a
+///     re-key negotiation that fails silently, leaving the database
+///     in a half-open state where INSERTs throw `database is locked`
+///     or `file is not a database`.
+///   - For an EXISTING database: same problem on reopen.
+///
+/// FIX: Only set `PRAGMA key`. Do NOT set `cipher_compatibility`.
+/// The default of SQLCipher 4 (shipped by the plugin) is correct.
+///
+/// Additional safety:
+///   * The passphrase is generated using `Random.secure()` (not time-
+///     based entropy) for proper cryptographic strength.
+///   * The passphrase is stored in `flutter_secure_storage` (Android
+///     Keystore-backed), never in SharedPreferences.
+///   * The SQL escape (single-quote doubling) prevents injection via
+///     the key itself.
 Future<FinlensDatabase> openFinlensDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'finlens.db');
@@ -128,28 +145,26 @@ Future<FinlensDatabase> openFinlensDatabase() async {
     dbFile,
     setup: (db) {
       // SQLCipher: provide the key BEFORE any other statement.
-      // If the file already exists with the right key, opening succeeds;
-      // if not, this will create an encrypted file.
-      final key = passphrase?.replaceAll("'", "''") ?? '';
-      db.execute("PRAGMA key = '$key';");
-      db.execute('PRAGMA cipher_compatibility = 4;');
+      // We escape single quotes by doubling them (SQL standard).
+      final escaped = passphrase!.replaceAll("'", "''");
+      db.execute("PRAGMA key = '$escaped';");
+      // NOTE: Do NOT set `PRAGMA cipher_compatibility` here.
+      // The plugin already ships SQLCipher 4 — setting it causes
+      // spurious "database is locked" / "file is not a database"
+      // errors on INSERT. See the method doc above for full details.
     },
   );
 
   return FinlensDatabase(executor);
 }
 
-/// Generates a 32-byte random passphrase and returns it base64-encoded.
+/// Generates a cryptographically random passphrase using `Random.secure()`.
 ///
-/// We don't use `dart:math.Random` for cryptographic strength here, but
-/// the result is only used as a SQLCipher key that itself never leaves the
-/// device. Still, we mix in microsecond timer entropy + a unique path
-/// to avoid trivial collisions.
+/// We use 32 random bytes from the OS CSPRNG, base64-encoded, to ensure
+/// the SQLCipher key has full 256-bit entropy. This replaces the previous
+/// time-based entropy generator which was predictable.
 String _generatePassphrase() {
-  final rng = DateTime.now().microsecondsSinceEpoch;
-  final bytes = List<int>.generate(32, (i) {
-    final mix = (rng ^ (i * 2654435761)) & 0xff;
-    return mix;
-  });
-  return String.fromCharCodes(bytes.map((b) => 0x20 + (b % 95)));
+  final rng = Random.secure();
+  final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+  return base64Encode(bytes);
 }

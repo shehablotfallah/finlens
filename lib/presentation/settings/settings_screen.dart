@@ -6,6 +6,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../data/services/security_service.dart';
 import '../../data/services/notification_service.dart';
 import '../app/providers.dart';
+import '../common/pin_pad.dart';
 import 'about_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -530,9 +531,17 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<bool> _promptCreatePin(BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context);
-    final first = await _promptPin(context, l.pinCreateTitle);
-    if (first == null || first.length != 4) return false;
-    final second = await _promptPin(context, l.pinConfirmTitle);
+    final first = await showPinEntryDialog(
+      context,
+      title: l.pinCreateTitle,
+      subtitle: l.pinCreateSubtitle,
+    );
+    if (first == null || first.length != 6) return false;
+    final second = await showPinEntryDialog(
+      context,
+      title: l.pinConfirmTitle,
+      subtitle: l.pinConfirmSubtitle,
+    );
     if (second == null || second != first) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -543,39 +552,6 @@ class SettingsScreen extends ConsumerWidget {
     }
     await ref.read(securityServiceProvider).setPin(first);
     return true;
-  }
-
-  Future<String?> _promptPin(BuildContext context, String title) async {
-    final l = AppLocalizations.of(context);
-    final ctrl = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: ctrl,
-            keyboardType: TextInputType.number,
-            maxLength: 4,
-            obscureText: true,
-            decoration: const InputDecoration(hintText: '••••'),
-            autofocus: true,
-            onSubmitted: (v) => Navigator.pop(ctx, v),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: Text(l.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: Text(l.commonOk),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<void> _confirmEraseAll(BuildContext context, WidgetRef ref) async {

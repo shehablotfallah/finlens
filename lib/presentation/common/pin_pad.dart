@@ -240,6 +240,9 @@ class _PinPadState extends State<PinPad>
 /// A dialog-style PIN entry used by the PIN-creation flow (setup wizard
 /// + Settings → Change PIN). Returns the entered PIN or null if the
 /// user cancels.
+///
+/// Uses a 6-digit PIN per the security policy (was 4 digits — upgraded
+/// for stronger protection).
 Future<String?> showPinEntryDialog(
   BuildContext context, {
   required String title,
@@ -267,7 +270,7 @@ Future<String?> showPinEntryDialog(
               const SizedBox(height: 16),
             ],
             PinPad(
-              length: 4,
+              length: 6,
               onComplete: (pin) => Navigator.pop(ctx, pin),
             ),
           ],

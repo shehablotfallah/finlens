@@ -54,13 +54,13 @@ class SecurityService {
   }
 
   /// Sets a new PIN. The previous PIN (if any) is overwritten.
-  /// Throws [ArgumentError] if the PIN is shorter than 4 digits or
+  /// Throws [ArgumentError] if the PIN is not exactly 6 digits or
   /// contains non-digit characters.
   Future<void> setPin(String pin) async {
-    if (pin.length < 4) {
-      throw ArgumentError('PIN must be at least 4 digits');
+    if (pin.length != 6) {
+      throw ArgumentError('PIN must be exactly 6 digits');
     }
-    if (!RegExp(r'^\d+$').hasMatch(pin)) {
+    if (!RegExp(r'^\d{6}$').hasMatch(pin)) {
       throw ArgumentError('PIN must contain only digits');
     }
     final salt = _generateSalt();

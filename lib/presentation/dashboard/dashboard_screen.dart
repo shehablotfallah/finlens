@@ -118,19 +118,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   String _greeting(AppLocalizations l, DateTime now, String? userName) {
-    final hour = now.hour;
-    final timeGreeting = hour < 12
-        ? l.homeGreetingMorning
-        : hour < 17
-            ? l.homeGreetingAfternoon
-            : l.homeGreetingEvening;
-    // If the user has set a display name, append it as: "Good morning, Shehab"
-    // Otherwise, just use the time-based greeting.
+    // Primary greeting: "Hello, {name}" or "أهلاً، {name}" if a name
+    // is configured. This is the product-preferred greeting — it feels
+    // more personal than a time-based "Good morning".
     final name = userName?.trim();
-    if (name == null || name.isEmpty) {
-      return timeGreeting;
+    if (name != null && name.isNotEmpty) {
+      return '${l.greetingHello}, $name';
     }
-    return '$timeGreeting, $name';
+    // Fallback: time-based greeting with sensible ranges.
+    //   05:00–11:59 → Good morning
+    //   12:00–16:59 → Good afternoon
+    //   17:00–21:59 → Good evening
+    //   22:00–04:59 → Good evening (neutral, avoids "good night" which
+    //                  implies leaving — a finance app should stay welcoming)
+    final hour = now.hour;
+    if (hour >= 5 && hour < 12) {
+      return l.homeGreetingMorning;
+    }
+    if (hour >= 12 && hour < 17) {
+      return l.homeGreetingAfternoon;
+    }
+    // 17:00–04:59 → evening
+    return l.homeGreetingEvening;
   }
 
   Future<void> _openAddTransaction(BuildContext context) async {

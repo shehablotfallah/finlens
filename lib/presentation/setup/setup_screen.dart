@@ -128,9 +128,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final first = await showPinEntryDialog(
       context,
       title: l.pinCreateTitle,
-      subtitle: l.setupSecurityPinNote,
+      subtitle: l.pinCreateSubtitle,
     );
-    if (first == null || first.length != 4) {
+    if (first == null || first.length != 6) {
       // User cancelled — revert the toggle.
       setState(() => _setupPin = false);
       return;
@@ -138,7 +138,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final second = await showPinEntryDialog(
       context,
       title: l.pinConfirmTitle,
-      subtitle: l.setupSecurityPinNote,
+      subtitle: l.pinConfirmSubtitle,
     );
     if (second == null || second != first) {
       if (mounted) {

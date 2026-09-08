@@ -299,6 +299,8 @@
   "aboutTechStackTitle": "Technical background",
   "aboutContactTitle": "Contact & social",
   "aboutContactFacebook": "Facebook",
+  "aboutContactLinkedIn": "LinkedIn",
+  "aboutContactWhatsApp": "WhatsApp",
   "aboutContactEmail": "Email",
   "aboutContactHandle": "Username",
   "aboutOpenInBrowser": "Open in browser",
@@ -308,6 +310,23 @@
   "aboutFailedToOpen": "Couldn't open the link. Please try again.",
   "aboutAppLabel": "Application",
   "aboutYearBuilt": "Built in 2026",
+  "aboutMadeBy": "Made by",
+  "aboutSoftwareEngineer": "Software Engineer",
+  "aboutLocalFirstFooter": "Privacy-first. Local-first.",
+
+  "errorSaveTransactionTitle": "Unable to save transaction",
+  "errorSaveTransactionBody": "We couldn't save this transaction. Your data has not been lost. Please try again.",
+  "errorRetry": "Try again",
+  "errorDismiss": "Dismiss",
+  "errorSaveGenericTitle": "Something went wrong",
+  "errorSaveGenericBody": "We couldn't complete this action. Please try again.",
+
+  "pinLengthHint": "Enter a 6-digit PIN",
+  "pinCreateSubtitle": "Use this PIN to unlock Finlens.",
+  "pinConfirmSubtitle": "Re-enter your PIN to confirm.",
+
+  "greetingHello": "Hello",
+  "greetingWelcome": "Welcome",
 
   "hintSwipeRow": "Swipe left or right on a transaction to edit or delete it.",
   "hintQuickCategory": "Tip: tap a category to quickly add a transaction in that category.",

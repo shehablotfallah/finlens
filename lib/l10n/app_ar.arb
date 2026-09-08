@@ -295,6 +295,8 @@
   "aboutTechStackTitle": "الخلفية التقنية",
   "aboutContactTitle": "تواصل واجتماعي",
   "aboutContactFacebook": "فيسبوك",
+  "aboutContactLinkedIn": "لينكدإن",
+  "aboutContactWhatsApp": "واتساب",
   "aboutContactEmail": "البريد الإلكتروني",
   "aboutContactHandle": "اسم المستخدم",
   "aboutOpenInBrowser": "افتح في المتصفح",
@@ -304,6 +306,23 @@
   "aboutFailedToOpen": "تعذّر فتح الرابط. حاول مرة أخرى.",
   "aboutAppLabel": "التطبيق",
   "aboutYearBuilt": "تم بناؤه في 2026",
+  "aboutMadeBy": "صُنع بواسطة",
+  "aboutSoftwareEngineer": "مهندس برمجيات",
+  "aboutLocalFirstFooter": "خصوصية أولاً. محلي أولاً.",
+
+  "errorSaveTransactionTitle": "تعذّر حفظ المعاملة",
+  "errorSaveTransactionBody": "لم نتمكن من حفظ هذه المعاملة. بياناتك لم تُفقد. حاول مرة أخرى.",
+  "errorRetry": "حاول مرة أخرى",
+  "errorDismiss": "تجاهل",
+  "errorSaveGenericTitle": "حدث خطأ ما",
+  "errorSaveGenericBody": "لم نتمكن من إكمال هذا الإجراء. حاول مرة أخرى.",
+
+  "pinLengthHint": "أدخل رمز PIN من 6 أرقام",
+  "pinCreateSubtitle": "استخدم هذا الرمز لفتح فِنلِنز.",
+  "pinConfirmSubtitle": "أعد إدخال رمز PIN للتأكيد.",
+
+  "greetingHello": "أهلاً",
+  "greetingWelcome": "مرحباً",
 
   "hintSwipeRow": "اسحب المعاملة يميناً أو يساراً للتعديل أو الحذف.",
   "hintQuickCategory": "نصيحة: اضغط فئة لإضافة معاملة بسرعة في تلك الفئة.",
