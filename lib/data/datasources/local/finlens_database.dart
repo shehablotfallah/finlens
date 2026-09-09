@@ -36,8 +36,7 @@ class Transactions extends Table {
       intEnum<RecurrenceIntervalDb>().nullable()();
   IntColumn get recurrenceCustomDays => integer().nullable()();
   IntColumn get reminderDaysBefore => integer().nullable()();
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().nullable()();
 
   @override
@@ -49,8 +48,7 @@ class CustomCategories extends Table {
   IntColumn get iconCodePoint => integer()();
   IntColumn get colorValue => integer()();
   BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -66,8 +64,7 @@ class InstallmentPlans extends Table {
   DateTimeColumn get startDate => dateTime()();
   IntColumn get intervalDays => integer().withDefault(const Constant(30))();
   TextColumn get note => text().nullable()();
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -84,17 +81,49 @@ class MonthlyInsights extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Table: app_notifications.
+/// Stores local in-app notifications with read/unread state.
+class AppNotifications extends Table {
+  TextColumn get id => text()();
+  TextColumn get type => text()(); // 'bill_reminder', 'insight', 'general'
+  TextColumn get title => text()();
+  TextColumn get body => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isRead => boolean().withDefault(const Constant(false))();
+  TextColumn get payload => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 enum TransactionTypeDb { expense, income }
+
 enum RecurrenceIntervalDb { weekly, monthly, custom }
 
 @DriftDatabase(
-  tables: [Transactions, CustomCategories, InstallmentPlans, MonthlyInsights],
+  tables: [
+    Transactions,
+    CustomCategories,
+    InstallmentPlans,
+    MonthlyInsights,
+    AppNotifications
+  ],
 )
 class FinlensDatabase extends _$FinlensDatabase {
   FinlensDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(appNotifications);
+          }
+        },
+      );
 }
 
 // ---------------------------------------------------------------------------

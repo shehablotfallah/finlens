@@ -149,7 +149,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   ///   a subtle background.
   Widget _buildIllustration(String assetPath, ThemeData theme) {
     if (assetPath == 'assets/images/finlens_logo.png') {
-      // Logo — rounded rectangle shape
       return ClipRRect(
         borderRadius: BorderRadius.circular(32),
         child: Image.asset(
@@ -160,19 +159,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ),
       );
     }
-    // Illustration — circular container with a subtle background
-    return Container(
-      width: 160,
-      height: 160,
-      decoration: BoxDecoration(
+    // Illustration — circular container with ClipRRect to prevent
+    // the image from extending outside the rounded boundary.
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(80), // half of width = circle
+      child: Container(
+        width: 160,
+        height: 160,
         color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-        shape: BoxShape.circle,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Image.asset(
-          assetPath,
-          fit: BoxFit.contain,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Image.asset(
+            assetPath,
+            fit: BoxFit.contain,
+          ),
         ),
       ),
     );

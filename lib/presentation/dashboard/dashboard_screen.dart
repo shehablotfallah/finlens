@@ -12,6 +12,8 @@ import '../../domain/usecases/usecases.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
 import '../transactions/transaction_edit_sheet.dart';
+import '../notifications/notifications_screen.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -70,10 +72,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       appBar: AppBar(
         title: Text(greeting),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => _showComingSoon(context, l.insightsTitle),
-          ),
+          _NotificationBell(),
         ],
       ),
       body: SafeArea(
@@ -868,3 +867,43 @@ class _RecentTransactionsCard extends ConsumerWidget {
     );
   }
 }
+
+
+/// Bell icon with reactive unread notification badge.
+///
+/// Tapping the bell navigates to the Notifications screen.
+/// The badge shows the count of unread notifications and updates
+/// reactively via [unreadNotificationsProvider].
+class _NotificationBell extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadAsync = ref.watch(unreadNotificationsProvider);
+    final theme = Theme.of(context);
+    return IconButton(
+      icon: unreadAsync.when(
+        loading: () => const Icon(Icons.notifications_outlined),
+        error: (_, __) => const Icon(Icons.notifications_outlined),
+        data: (count) => Badge(
+          isLabelVisible: count > 0,
+          label: Text(
+            count > 9 ? '9+' : '$count',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          child: const Icon(Icons.notifications_outlined),
+        ),
+      ),
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const NotificationsScreen(),
+          ),
+        );
+      },
+    );
+  }
+}
+

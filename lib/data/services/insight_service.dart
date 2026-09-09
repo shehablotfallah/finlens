@@ -119,32 +119,36 @@ class DummyLocalInsightProvider implements LlmInsightProvider {
 
     final topCat = stats.topCategoryIds.first;
     final topAmount = stats.categoryTotals[topCat] ?? 0.0;
-    final avgForCat = stats.threeMonthAverageByCategory[topCat] ?? 0.0;
-
-    final pctVsAvg = avgForCat == 0
-        ? null
-        : ((topAmount - avgForCat) / avgForCat * 100).round();
-
-    final yearSavingsIfHalved = (topAmount * 12 * 0.5).roundToDouble();
+    final pctOfTotal = stats.totalSpent > 0
+        ? ((topAmount / stats.totalSpent) * 100).round()
+        : 0;
 
     if (isAr) {
       final catName = _categoryNameAr(topCat);
-      final pctPart = pctVsAvg == null
-          ? 'وهذه أول مرة تتصدر فيها هذه الفئة الإنفاق'
-          : (pctVsAvg >= 0
-              ? 'بزيادة ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر'
-              : 'بانخفاض ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر');
-      return 'تصدرت فئة "$catName" إنفاقك هذا الشهر بمبلغ ${_fmt(topAmount)} $cur، $pctPart. '
-          'لو خفّضت هذا البند للنصف، ستوفّر حوالي ${_fmt(yearSavingsIfHalved.toDouble())} $cur سنوياً.';
+      // Only show comparison if we actually have 3-month data
+      final avgForCat = stats.threeMonthAverageByCategory[topCat] ?? 0.0;
+      if (avgForCat > 0) {
+        final pctVsAvg = ((topAmount - avgForCat) / avgForCat * 100).round();
+        final comparison = pctVsAvg >= 0
+            ? 'بزيادة ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر'
+            : 'بانخفاض ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر';
+        return 'فئة "$catName" هي أعلى إنفاقك هذا الشهر بمبلغ ${_fmt(topAmount)} $cur ($pctOfTotal% من الإجمالي)، $comparison.';
+      }
+      // No historical data — keep it factual
+      return 'فئة "$catName" هي أعلى إنفاقك هذا الشهر بمبلغ ${_fmt(topAmount)} $cur ($pctOfTotal% من الإجمالي).';
     }
     final catName = _categoryNameEn(topCat);
-    final pctPart = pctVsAvg == null
-        ? "and this is the first time it's your top category"
-        : (pctVsAvg >= 0
-            ? 'up ${pctVsAvg.abs()}% vs your 3-month average'
-            : 'down ${pctVsAvg.abs()}% vs your 3-month average');
-    return '"$catName" topped your spending this month at ${_fmt(topAmount)} $cur, $pctPart. '
-        'Cutting it in half would save you about ${_fmt(yearSavingsIfHalved.toDouble())} $cur per year.';
+    // Only show comparison if we actually have 3-month data
+    final avgForCat = stats.threeMonthAverageByCategory[topCat] ?? 0.0;
+    if (avgForCat > 0) {
+      final pctVsAvg = ((topAmount - avgForCat) / avgForCat * 100).round();
+      final comparison = pctVsAvg >= 0
+          ? 'up ${pctVsAvg.abs()}% vs your 3-month average'
+          : 'down ${pctVsAvg.abs()}% vs your 3-month average';
+      return '"$catName" is your highest spending category this month at ${_fmt(topAmount)} $cur ($pctOfTotal% of total), $comparison.';
+    }
+    // No historical data — keep it factual
+    return '"$catName" is your highest spending category this month at ${_fmt(topAmount)} $cur ($pctOfTotal% of total).';
   }
 
   String _fmt(double v) => v.toStringAsFixed(2);
@@ -156,10 +160,26 @@ class DummyLocalInsightProvider implements LlmInsightProvider {
         'shopping': 'التسوّق',
         'health': 'الصحة',
         'education': 'التعليم',
-        'other': 'متنوّع',
+        'investment_return': 'عائد استثماري',
+      'other': 'متنوّع',
       }[id] ??
       id;
-  String _categoryNameEn(String id) => id[0].toUpperCase() + id.substring(1);
+  String _categoryNameEn(String id) {
+    final names = {
+      'food': 'Food',
+      'transport': 'Transport',
+      'bills': 'Bills',
+      'entertainment': 'Entertainment',
+      'shopping': 'Shopping',
+      'health': 'Health',
+      'education': 'Education',
+      'salary': 'Salary',
+      'freelance': 'Freelance',
+      'investment_return': 'Investment Return',
+      'other': 'Other',
+    };
+    return names[id] ?? id[0].toUpperCase() + id.substring(1);
+  }
 }
 
 /// Optional provider that calls an OpenAI-compatible chat completions endpoint.

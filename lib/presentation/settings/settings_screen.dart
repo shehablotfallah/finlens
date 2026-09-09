@@ -413,14 +413,12 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (picked != null) {
       await ref.read(appSettingsProvider.notifier).setReminderDaysBefore(picked);
-      // If user enabled reminders (days > 0), request notification permission
-      // with a proper explanatory dialog.
-      if (picked > 0) {
-        // Small delay to let the SimpleDialog animation finish, so the
-        // activity is in a stable state when we request permission.
-        // On some OEMs (Realme/OPPO), requesting a permission while a
-        // dialog is animating away causes the permission dialog to
-        // never appear.
+      // Only request notification permission if the user is ENABLING
+      // reminders (going from 0/off to >0), NOT on every value change.
+      // This separates the reminder preference from the permission
+      // request — changing 2→3 should NOT trigger a permission dialog.
+      if (picked > 0 && current == 0) {
+        // User just turned reminders ON (was off, now on).
         await Future<void>.delayed(const Duration(milliseconds: 300));
         if (!context.mounted) return;
         await _ensureNotificationPermission(context, ref);
@@ -429,37 +427,18 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   /// Requests notification permission with a proper explanatory dialog.
-  ///
-  /// FLOW:
-  ///   1. Show an AlertDialog explaining WHY we need notifications.
-  ///   2. If user taps "Allow" → call Permission.notification.request().
-  ///   3. If granted → snackbar confirmation.
-  ///   4. If denied → snackbar explaining how to enable later.
-  ///   5. If permanently denied → offer to open Android settings.
+  /// Only called when the user FIRST enables reminders (not on every
+  /// value change of the reminder days setting).
   Future<void> _ensureNotificationPermission(
       BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context);
-
-    // Step 1: Check if already granted.
     final notif = ref.read(notificationServiceProvider);
-    final alreadyEnabled = await notif.areNotificationsEnabled();
-    if (alreadyEnabled) {
-      // Already granted — no need to bother the user.
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.notifPermAlreadyGranted)),
-        );
-      }
-      return;
-    }
 
-    // Step 2: Show explanatory dialog BEFORE requesting permission.
-    // This is critical because:
-    //   a) On Android 13+, the system permission dialog can only be
-    //      shown once per install. If the user denies it, subsequent
-    //      calls to request() return immediately without a dialog.
-    //   b) An explanatory dialog gives the user context about WHY we
-    //      need notifications, making them more likely to grant it.
+    // Check if already granted — if so, don't bother the user.
+    final alreadyEnabled = await notif.areNotificationsEnabled();
+    if (alreadyEnabled) return;
+
+    // Show explanatory dialog before requesting the system permission.
     final userAgreed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -481,40 +460,16 @@ class SettingsScreen extends ConsumerWidget {
     if (userAgreed != true) return;
     if (!context.mounted) return;
 
-    // Step 3: Actually request the permission.
     final result = await notif.requestPermission();
     if (!context.mounted) return;
 
-    final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case NotificationPermissionResult.granted:
-        messenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l.notifPermGranted)),
         );
       case NotificationPermissionResult.denied:
-        // Show a dialog explaining how to enable later.
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(l.notifPermDeniedTitle),
-            content: Text(l.notifPermDeniedBody),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(l.commonCancel),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  notif.openNotificationSettings();
-                },
-                child: Text(l.notifPermOpenSettings),
-              ),
-            ],
-          ),
-        );
       case NotificationPermissionResult.permanentlyDenied:
-        // Offer to open Android notification settings directly.
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(

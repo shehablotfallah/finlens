@@ -15,6 +15,8 @@ import '../../data/services/notification_service.dart';
 import '../../data/services/security_service.dart';
 import '../../domain/repositories/repositories.dart';
 import '../../domain/usecases/usecases.dart';
+import '../../data/repositories/notification_repository_impl.dart';
+import '../../domain/entities/app_notification.dart' as notif_domain;
 
 // ---------------------------------------------------------------------------
 // Async singletons
@@ -84,6 +86,25 @@ final statsRepositoryProvider =
     FutureProvider<StatsRepository>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   return StatsRepositoryImpl(db);
+});
+
+/// Provides the [NotificationRepositoryImpl] for in-app notifications.
+final notificationRepositoryProvider =
+    FutureProvider<NotificationRepositoryImpl>((ref) async {
+  final db = await ref.watch(databaseProvider.future);
+  return NotificationRepositoryImpl(db);
+});
+
+/// Reactive unread notification count (used for the bell badge).
+final unreadNotificationsProvider = StreamProvider<int>((ref) async* {
+  final repo = await ref.watch(notificationRepositoryProvider.future);
+  yield* repo.watchUnreadCount();
+});
+
+/// Reactive list of all in-app notifications.
+final allNotificationsProvider = StreamProvider<List<notif_domain.AppNotification>>((ref) async* {
+  final repo = await ref.watch(notificationRepositoryProvider.future);
+  yield* repo.watchAll();
 });
 
 final exchangeRateProvider = Provider<ExchangeRateProviderImpl>((ref) {

@@ -8,7 +8,6 @@
   "@supportEmail": {},
   "socialHandle": "@shehablotfallah",
   "@socialHandle": {},
-
   "commonOk": "OK",
   "commonCancel": "Cancel",
   "commonSave": "Save",
@@ -41,13 +40,11 @@
   "commonNote": "Note",
   "commonCategory": "Category",
   "commonNotes": "Notes",
-
   "navHome": "Home",
   "navTransactions": "Transactions",
   "navBills": "Bills",
   "navReports": "Reports",
   "navSettings": "Settings",
-
   "onboardingTitle1": "Welcome to Finlens",
   "onboardingBody1": "A privacy-first finance tracker — your money, your data, your device.",
   "onboardingTitle2": "Track. Analyze. Improve.",
@@ -56,7 +53,6 @@
   "onboardingBody3": "Everything is encrypted locally. No accounts, no servers, no analytics. Only you see your numbers.",
   "onboardingTitle4": "Monthly AI insight",
   "onboardingBody4": "Once a month, Finlens summarizes your spending pattern and suggests one concrete action — you choose whether to act on it.",
-
   "setupLanguageTitle": "Choose your language",
   "setupLanguageSubtitle": "You can change this later in Settings.",
   "setupSalaryDayTitle": "When do you get paid?",
@@ -73,12 +69,15 @@
   "setupSecuritySkip": "Maybe later",
   "setupFinishTitle": "You're all set",
   "setupFinishBody": "Tap the + button to log your first transaction.",
-
   "setupStepOf": "Step {current} of {total}",
   "@setupStepOf": {
     "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "setupNameTitle": "What should we call you?",
@@ -109,7 +108,6 @@
   "setupSummaryOff": "Off",
   "setupSummaryNotSet": "Not set",
   "setupEdit": "Edit",
-
   "homeGreetingMorning": "Good morning",
   "homeGreetingAfternoon": "Good afternoon",
   "homeGreetingEvening": "Good evening",
@@ -117,7 +115,9 @@
   "homeDaysUntilPayday": "{count, plural, =0{Payday is today} =1{1 day until payday} other{{count} days until payday}}",
   "@homeDaysUntilPayday": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "homeDailyBudget": "Daily budget remaining",
@@ -131,7 +131,6 @@
   "homeHighestSpendingCategory": "Highest spending category",
   "homeViewAll": "View all",
   "homeNoTransactionsYet": "No transactions yet. Tap + to add one.",
-
   "txTitleAdd": "Add transaction",
   "txTitleEdit": "Edit transaction",
   "txTypeExpense": "Expense",
@@ -153,7 +152,6 @@
   "txCategoryEducation": "Education",
   "txCategorySalary": "Salary",
   "txCategoryFreelance": "Freelance",
-  "txCategoryInvestmentReturn": "Investment Return",
   "txCategoryOther": "Other",
   "txDeleteConfirm": "Delete this transaction?",
   "txDeleteConfirmBody": "This cannot be undone.",
@@ -161,17 +159,17 @@
   "txAdded": "Transaction added",
   "txUpdated": "Transaction updated",
   "txDeleted": "Transaction deleted",
-
   "billsTitle": "Upcoming Obligations",
   "billsNextDue": "Next due",
   "billsNoUpcoming": "No upcoming bills. Mark a transaction as recurring to see it here.",
   "billsDueIn": "Due in {days, plural, =0{today} =1{1 day} other{{days} days}}",
   "@billsDueIn": {
     "placeholders": {
-      "days": {"type": "int"}
+      "days": {
+        "type": "int"
+      }
     }
   },
-
   "installmentsTitle": "Installment Plans",
   "installmentsAdd": "New installment plan",
   "installmentsProvider": "Provider (e.g. Valu, Orange Cash)",
@@ -182,13 +180,16 @@
   "installmentsPaid": "{paid} of {total}",
   "@installmentsPaid": {
     "placeholders": {
-      "paid": {"type": "int"},
-      "total": {"type": "int"}
+      "paid": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "installmentsEmpty": "No installment plans yet.",
   "installmentsMarkPaid": "Mark as paid",
-
   "reportsTitle": "Reports",
   "reportsRangeDaily": "Daily",
   "reportsRangeMonthly": "Monthly",
@@ -203,20 +204,20 @@
   "reportsExportCsv": "Export as CSV",
   "reportsSharedTo": "Shared to other apps",
   "reportsNoData": "No data for this period",
-
   "insightsTitle": "Monthly Insight",
   "insightsGenerate": "Generate insight",
   "insightsGenerating": "Analyzing your spending…",
   "insightsLastGenerated": "Last generated {date}",
   "@insightsLastGenerated": {
     "placeholders": {
-      "date": {"type": "String"}
+      "date": {
+        "type": "String"
+      }
     }
   },
   "insightsNever": "Not generated yet",
   "insightsError": "Couldn't generate insight. Check your connection or try again.",
   "insightsDisclaimer": "Insights are generated from aggregated stats only — no individual transactions are sent.",
-
   "settingsTitle": "Settings",
   "settingsAppearance": "Appearance",
   "settingsLanguage": "Language",
@@ -259,7 +260,6 @@
   "settingsRemindersOn": "On",
   "settingsNotificationPermDenied": "Notifications are disabled. Enable them in Settings → Apps to receive bill reminders.",
   "settingsNotificationPermOpen": "Open app settings",
-
   "pinCreateTitle": "Create a PIN",
   "pinConfirmTitle": "Confirm your PIN",
   "pinEnterTitle": "Enter PIN",
@@ -268,7 +268,9 @@
   "pinWrongAttempts": "Wrong PIN. {attempts} attempt(s) remaining.",
   "@pinWrongAttempts": {
     "placeholders": {
-      "attempts": {"type": "int"}
+      "attempts": {
+        "type": "int"
+      }
     }
   },
   "biometricPrompt": "Authenticate to unlock Finlens",
@@ -277,7 +279,6 @@
   "biometricNotEnrolled": "No biometrics are enrolled. Set up fingerprint or face unlock in your device settings first.",
   "biometricRetry": "Try biometric again",
   "biometricFailed": "Biometric authentication failed. Use your PIN to unlock.",
-
   "notifPermTitle": "Enable notifications?",
   "notifPermMessage": "Finlens needs notification permission to remind you about upcoming bills before they're due.",
   "notifPermAllow": "Allow",
@@ -289,7 +290,6 @@
   "notifPermDeniedTitle": "Notifications are off",
   "notifPermDeniedBody": "Bill reminders won't work without notification permission. Open notification settings to allow them?",
   "notifPermAlreadyGranted": "Notifications are already enabled.",
-
   "aboutAppTagline": "Privacy-first personal finance tracker",
   "aboutAppDescription": "Finlens helps you track expenses, recurring bills, installments, and savings insights — entirely on your device, with no backend and no analytics.",
   "aboutFeaturesTitle": "What you get",
@@ -318,30 +318,60 @@
   "aboutMadeBy": "Developed by",
   "aboutSoftwareEngineer": "Software Engineer",
   "aboutLocalFirstFooter": "Privacy-first. Local-first.",
-
   "errorSaveTransactionTitle": "Unable to save transaction",
   "errorSaveTransactionBody": "We couldn't save this transaction. Your data has not been lost. Please try again.",
   "errorRetry": "Try again",
   "errorDismiss": "Dismiss",
   "errorSaveGenericTitle": "Something went wrong",
   "errorSaveGenericBody": "We couldn't complete this action. Please try again.",
-
   "pinLengthHint": "Enter a 6-digit PIN",
   "pinCreateSubtitle": "Use this PIN to unlock Finlens.",
   "pinConfirmSubtitle": "Re-enter your PIN to confirm.",
-
   "greetingHello": "Hello",
   "greetingWelcome": "Welcome",
-
   "hintSwipeRow": "Swipe left or right on a transaction to edit or delete it.",
   "hintQuickCategory": "Tip: tap a category to quickly add a transaction in that category.",
   "hintPullToRefresh": "Pull down to refresh reports.",
   "hintDismiss": "Got it",
-
   "errorAmountRequired": "Please enter an amount",
   "errorAmountInvalid": "Invalid amount",
   "errorCategoryRequired": "Pick a category",
   "errorDb": "Database error",
   "errorUnknown": "Unknown error",
-  "errorExternalLink": "Couldn't open the link. Check your browser."
+  "errorExternalLink": "Couldn't open the link. Check your browser.",
+  "notifScreenTitle": "Notifications",
+  "notifScreenEmpty": "No notifications yet. You'll see bill reminders and monthly insights here.",
+  "notifMarkAsRead": "Mark as read",
+  "notifMarkAsUnread": "Mark as unread",
+  "notifDelete": "Delete",
+  "notifMarkAllRead": "Mark all as read",
+  "notifTypeBillReminder": "Bill Reminder",
+  "notifTypeInsight": "Monthly Vision",
+  "notifTypeGeneral": "Notification",
+  "notifJustNow": "Just now",
+  "notifMinAgo": "{count} min ago",
+  "@notifMinAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifHourAgo": "{count}h ago",
+  "@notifHourAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifDayAgo": "{count}d ago",
+  "@notifDayAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "txCategoryInvestmentReturn": "Investment Return"
 }

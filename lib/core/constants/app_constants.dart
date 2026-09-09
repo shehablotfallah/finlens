@@ -12,9 +12,11 @@ class AppConstants {
   static const String developerRole = 'Backend Engineer / Full Stack Engineer';
   static const String supportEmail = 'shehab-dev@outlook.com';
   static const String facebookUrl = 'https://www.facebook.com/shehablotfallah';
-  static const String linkedInUrl = 'https://www.linkedin.com/in/shehablotfallah';
+  static const String linkedInUrl =
+      'https://www.linkedin.com/in/shehablotfallah';
   static const String whatsappUrl = 'https://wa.me/shehablotfallah';
-  static const String education = 'BSc in Computer and Information Sciences — Mansoura University';
+  static const String education =
+      'BSc in Computer and Information Sciences — Mansoura University';
   static const String graduationYear = '2024';
 
   // Tech stack summary (kept concise — this is an app, not a CV).

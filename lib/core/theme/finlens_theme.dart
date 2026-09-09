@@ -154,9 +154,8 @@ class FinlensTheme {
         ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: isLight
-            ? FinlensColors.lightSurface
-            : FinlensColors.darkSurface,
+        backgroundColor:
+            isLight ? FinlensColors.lightSurface : FinlensColors.darkSurface,
         selectedItemColor: scheme.primary,
         unselectedItemColor: isLight
             ? FinlensColors.lightTextSecondary
@@ -165,9 +164,8 @@ class FinlensTheme {
         elevation: 0,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: isLight
-            ? FinlensColors.lightSurface
-            : FinlensColors.darkSurface,
+        backgroundColor:
+            isLight ? FinlensColors.lightSurface : FinlensColors.darkSurface,
         indicatorColor: scheme.primaryContainer,
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
@@ -180,22 +178,33 @@ class FinlensTheme {
     final base = isLight
         ? FinlensColors.lightTextPrimary
         : FinlensColors.darkTextPrimary;
-    final secondary =
-        isLight ? FinlensColors.lightTextSecondary : FinlensColors.darkTextSecondary;
+    final secondary = isLight
+        ? FinlensColors.lightTextSecondary
+        : FinlensColors.darkTextSecondary;
     return TextTheme(
-      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: base, height: 1.2),
-      displayMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: base, height: 1.2),
-      displaySmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: base, height: 1.3),
-      headlineMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: base, height: 1.3),
-      headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: base, height: 1.3),
-      titleLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: base),
-      titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: base),
-      titleSmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: secondary),
+      displayLarge: TextStyle(
+          fontSize: 32, fontWeight: FontWeight.w700, color: base, height: 1.2),
+      displayMedium: TextStyle(
+          fontSize: 28, fontWeight: FontWeight.w700, color: base, height: 1.2),
+      displaySmall: TextStyle(
+          fontSize: 24, fontWeight: FontWeight.w600, color: base, height: 1.3),
+      headlineMedium: TextStyle(
+          fontSize: 20, fontWeight: FontWeight.w600, color: base, height: 1.3),
+      headlineSmall: TextStyle(
+          fontSize: 18, fontWeight: FontWeight.w600, color: base, height: 1.3),
+      titleLarge:
+          TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: base),
+      titleMedium:
+          TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: base),
+      titleSmall: TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w500, color: secondary),
       bodyLarge: TextStyle(fontSize: 16, color: base, height: 1.5),
       bodyMedium: TextStyle(fontSize: 14, color: base, height: 1.5),
       bodySmall: TextStyle(fontSize: 12, color: secondary),
-      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: base),
-      labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: secondary),
+      labelLarge:
+          TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: base),
+      labelMedium: TextStyle(
+          fontSize: 12, fontWeight: FontWeight.w500, color: secondary),
       labelSmall: TextStyle(fontSize: 11, color: secondary),
     );
   }
@@ -213,9 +222,11 @@ class FinlensTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: FinlensColors.primary, width: 1.5),
+          borderSide:
+              const BorderSide(color: FinlensColors.primary, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       );
 
   static InputDecorationTheme get _inputDark => InputDecorationTheme(
@@ -231,9 +242,11 @@ class FinlensTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: FinlensColors.primaryDark, width: 1.5),
+          borderSide:
+              const BorderSide(color: FinlensColors.primaryDark, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       );
 }
 

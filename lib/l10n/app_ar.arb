@@ -4,7 +4,6 @@
   "developedBy": "تطوير: شهاب لطف الله",
   "supportEmail": "shehab-dev@outlook.com",
   "socialHandle": "@shehablotfallah",
-
   "commonOk": "حسناً",
   "commonCancel": "إلغاء",
   "commonSave": "حفظ",
@@ -37,13 +36,11 @@
   "commonNote": "ملاحظة",
   "commonCategory": "الفئة",
   "commonNotes": "ملاحظات",
-
   "navHome": "الرئيسية",
   "navTransactions": "المعاملات",
   "navBills": "الفواتير",
   "navReports": "التقارير",
   "navSettings": "الإعدادات",
-
   "onboardingTitle1": "أهلاً بك في فِنلِنز",
   "onboardingBody1": "متتبّع مالي يحترم خصوصيتك — أموالك وبياناتك تبقى على جهازك.",
   "onboardingTitle2": "تابِع. حلِّل. حسِّن.",
@@ -52,7 +49,6 @@
   "onboardingBody3": "كل شيء مشفّر محلياً. لا حسابات، لا خوادم، لا تحليلات. أنت فقط من يرى أرقامك.",
   "onboardingTitle4": "رؤية شهرية بالذكاء الاصطناعي",
   "onboardingBody4": "مرة كل شهر، يلخّص فِنلِنز نمط إنفاقك ويقترح إجراءً واحداً ملموساً — وأنت تقرّر ما إذا كنت ستتخذه.",
-
   "setupLanguageTitle": "اختر لغتك",
   "setupLanguageSubtitle": "يمكنك تغييرها لاحقاً من الإعدادات.",
   "setupSalaryDayTitle": "متى يصلك الراتب؟",
@@ -69,12 +65,15 @@
   "setupSecuritySkip": "ربما لاحقاً",
   "setupFinishTitle": "كل شيء جاهز",
   "setupFinishBody": "اضغط زر + لتسجيل أول معاملة.",
-
   "setupStepOf": "خطوة {current} من {total}",
   "@setupStepOf": {
     "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "setupNameTitle": "إيه الاسم اللي نناديك بيه؟",
@@ -105,7 +104,6 @@
   "setupSummaryOff": "مُعطّل",
   "setupSummaryNotSet": "غير محدّد",
   "setupEdit": "تعديل",
-
   "homeGreetingMorning": "صباح الخير",
   "homeGreetingAfternoon": "مساء الخير",
   "homeGreetingEvening": "مساء الخير",
@@ -113,7 +111,9 @@
   "homeDaysUntilPayday": "{count, plural, =0{الراتب اليوم} =1{يوم واحد حتى الراتب} =2{يومان حتى الراتب} other{{count} أيام حتى الراتب}}",
   "@homeDaysUntilPayday": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "homeDailyBudget": "الميزانية اليومية المتبقية",
@@ -127,7 +127,6 @@
   "homeHighestSpendingCategory": "أعلى فئة في الإنفاق",
   "homeViewAll": "عرض الكل",
   "homeNoTransactionsYet": "لا توجد معاملات بعد. اضغط + للإضافة.",
-
   "txTitleAdd": "إضافة معاملة",
   "txTitleEdit": "تعديل المعاملة",
   "txTypeExpense": "مصروف",
@@ -149,7 +148,6 @@
   "txCategoryEducation": "تعليم",
   "txCategorySalary": "راتب",
   "txCategoryFreelance": "عمل حر",
-  "txCategoryInvestmentReturn": "عائد استثماري",
   "txCategoryOther": "أخرى",
   "txDeleteConfirm": "حذف هذه المعاملة؟",
   "txDeleteConfirmBody": "لا يمكن التراجع عن هذا.",
@@ -157,17 +155,17 @@
   "txAdded": "تمت إضافة المعاملة",
   "txUpdated": "تم تحديث المعاملة",
   "txDeleted": "تم حذف المعاملة",
-
   "billsTitle": "الالتزامات القادمة",
   "billsNextDue": "الاستحقاق القادم",
   "billsNoUpcoming": "لا فواتير قادمة. علّم معاملة كمتكررة لتظهر هنا.",
   "billsDueIn": "يستحق خلال {days, plural, =0{اليوم} =1{يوم واحد} =2{يومين} other{{days} أيام}}",
   "@billsDueIn": {
     "placeholders": {
-      "days": {"type": "int"}
+      "days": {
+        "type": "int"
+      }
     }
   },
-
   "installmentsTitle": "خطط الأقساط",
   "installmentsAdd": "خطة أقساط جديدة",
   "installmentsProvider": "المزوّد (مثل فالو، أورانج كاش)",
@@ -178,13 +176,16 @@
   "installmentsPaid": "{paid} من {total}",
   "@installmentsPaid": {
     "placeholders": {
-      "paid": {"type": "int"},
-      "total": {"type": "int"}
+      "paid": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "installmentsEmpty": "لا توجد خطط أقساط بعد.",
   "installmentsMarkPaid": "وضع علامة مدفوع",
-
   "reportsTitle": "التقارير",
   "reportsRangeDaily": "يومي",
   "reportsRangeMonthly": "شهري",
@@ -199,20 +200,20 @@
   "reportsExportCsv": "تصدير CSV",
   "reportsSharedTo": "تمت المشاركة مع تطبيقات أخرى",
   "reportsNoData": "لا توجد بيانات لهذه الفترة",
-
   "insightsTitle": "الرؤية الشهرية",
   "insightsGenerate": "توليد رؤية",
   "insightsGenerating": "نحلّل إنفاقك…",
   "insightsLastGenerated": "آخر توليد {date}",
   "@insightsLastGenerated": {
     "placeholders": {
-      "date": {"type": "String"}
+      "date": {
+        "type": "String"
+      }
     }
   },
   "insightsNever": "لم يُولّد بعد",
   "insightsError": "تعذّر توليد الرؤية. تحقّق من اتصالك أو حاول مرة أخرى.",
   "insightsDisclaimer": "تُولَّد الرؤى من إحصاءات مجمّعة فقط — لا تُرسَل المعاملات الفردية.",
-
   "settingsTitle": "الإعدادات",
   "settingsAppearance": "المظهر",
   "settingsLanguage": "اللغة",
@@ -255,7 +256,6 @@
   "settingsRemindersOn": "مُفعّل",
   "settingsNotificationPermDenied": "الإشعارات مُعطّلة. فعّلها من إعدادات الجهاز → التطبيقات لتستلم تذكيرات الفواتير.",
   "settingsNotificationPermOpen": "افتح إعدادات التطبيق",
-
   "pinCreateTitle": "أنشئ رمز PIN",
   "pinConfirmTitle": "أكّد رمز PIN",
   "pinEnterTitle": "أدخل رمز PIN",
@@ -264,7 +264,9 @@
   "pinWrongAttempts": "رمز PIN خاطئ. متبقّي {attempts} محاولة/محاولات.",
   "@pinWrongAttempts": {
     "placeholders": {
-      "attempts": {"type": "int"}
+      "attempts": {
+        "type": "int"
+      }
     }
   },
   "biometricPrompt": "سجّل الدخول لفتح فِنلِنز",
@@ -273,7 +275,6 @@
   "biometricNotEnrolled": "لا توجد بصمة مسجّلة. اضبط بصمة الإصبع أو الوجه في إعدادات جهازك أولاً.",
   "biometricRetry": "أعد المحاولة بالبصمة",
   "biometricFailed": "فشلت المصادقة بالبصمة. استخدم رمز PIN للفتح.",
-
   "notifPermTitle": "تفعيل الإشعارات؟",
   "notifPermMessage": "يحتاج فِنلِنز لإذن الإشعارات ليذكّرك بالفواتير القادمة قبل موعد استحقاقها.",
   "notifPermAllow": "سماح",
@@ -285,7 +286,6 @@
   "notifPermDeniedTitle": "الإشعارات مُعطّلة",
   "notifPermDeniedBody": "تذكيرات الفواتير مش هتشتغل بدون إذن الإشعارات. تحب تفتح إعدادات الإشعارات عشان تسمح بيها؟",
   "notifPermAlreadyGranted": "الإشعارات مُفعّلة بالفعل.",
-
   "aboutAppTagline": "متتبّع مالي يحترم خصوصيتك",
   "aboutAppDescription": "فِنلِنز يساعدك على تتبّع المصروفات والفواتير المتكررة والأقساط ورؤى الادخار — بالكامل على جهازك، بدون خادم وبدون تحليلات.",
   "aboutFeaturesTitle": "ما الذي تحصل عليه",
@@ -314,30 +314,60 @@
   "aboutMadeBy": "تطوير",
   "aboutSoftwareEngineer": "مهندس برمجيات",
   "aboutLocalFirstFooter": "خصوصية أولاً. محلي أولاً.",
-
   "errorSaveTransactionTitle": "تعذّر حفظ المعاملة",
   "errorSaveTransactionBody": "لم نتمكن من حفظ هذه المعاملة. بياناتك لم تُفقد. حاول مرة أخرى.",
   "errorRetry": "حاول مرة أخرى",
   "errorDismiss": "تجاهل",
   "errorSaveGenericTitle": "حدث خطأ ما",
   "errorSaveGenericBody": "لم نتمكن من إكمال هذا الإجراء. حاول مرة أخرى.",
-
   "pinLengthHint": "أدخل رمز PIN من 6 أرقام",
   "pinCreateSubtitle": "استخدم هذا الرمز لفتح فِنلِنز.",
   "pinConfirmSubtitle": "أعد إدخال رمز PIN للتأكيد.",
-
   "greetingHello": "أهلاً",
   "greetingWelcome": "مرحباً",
-
   "hintSwipeRow": "اسحب المعاملة يميناً أو يساراً للتعديل أو الحذف.",
   "hintQuickCategory": "نصيحة: اضغط فئة لإضافة معاملة بسرعة في تلك الفئة.",
   "hintPullToRefresh": "اسحب للأسفل لتحديث التقارير.",
   "hintDismiss": "فهمت",
-
   "errorAmountRequired": "الرجاء إدخال المبلغ",
   "errorAmountInvalid": "مبلغ غير صالح",
   "errorCategoryRequired": "اختر فئة",
   "errorDb": "خطأ في قاعدة البيانات",
   "errorUnknown": "خطأ غير معروف",
-  "errorExternalLink": "تعذّر فتح الرابط. تحقّق من المتصفح."
+  "errorExternalLink": "تعذّر فتح الرابط. تحقّق من المتصفح.",
+  "notifScreenTitle": "الإشعارات",
+  "notifScreenEmpty": "لا توجد إشعارات بعد. ستجد هنا تذكيرات الفواتير والرؤية الشهرية.",
+  "notifMarkAsRead": "وضع علامة مقروء",
+  "notifMarkAsUnread": "وضع علامة غير مقروء",
+  "notifDelete": "حذف",
+  "notifMarkAllRead": "تعليم الكل كمقروء",
+  "notifTypeBillReminder": "تذكير فاتورة",
+  "notifTypeInsight": "الرؤية الشهرية",
+  "notifTypeGeneral": "إشعار",
+  "notifJustNow": "الآن",
+  "notifMinAgo": "منذ {count} دقيقة",
+  "@notifMinAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifHourAgo": "منذ {count} ساعة",
+  "@notifHourAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifDayAgo": "منذ {count} يوم",
+  "@notifDayAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "txCategoryInvestmentReturn": "عائد استثماري"
 }
