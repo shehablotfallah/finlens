@@ -369,5 +369,21 @@
       }
     }
   },
-  "txCategoryInvestmentReturn": "عائد استثماري"
+  "txCategoryInvestmentReturn": "عائد استثماري",
+  "reportsSummary": "الملخص",
+  "reportsNetBalance": "الرصيد الصافي",
+  "reportsSavingsRate": "معدل الادخار",
+  "reportsTxCount": "المعاملات",
+  "reportsIncomeCount": "معاملات الدخل",
+  "reportsExpenseCount": "معاملات المصروفات",
+  "reportsAvgExpense": "متوسط المصروف",
+  "reportsLargestExpense": "أكبر مصروف",
+  "reportsHighestCategory": "أعلى فئة إنفاق",
+  "reportsIncomeBreakdown": "تفصيل الدخل",
+  "reportsStatistics": "الإحصائيات",
+  "reportsNoIncome": "لا يوجد دخل في هذه الفترة",
+  "reportsNoExpenses": "لا توجد مصروفات في هذه الفترة",
+  "reportsSpendingOverTime": "الإنفاق عبر الزمن",
+  "reportsTransactions": "معاملة",
+  "reportsOfTotal": "من الإجمالي"
 }

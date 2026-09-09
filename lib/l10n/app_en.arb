@@ -373,5 +373,21 @@
       }
     }
   },
-  "txCategoryInvestmentReturn": "Investment Return"
+  "txCategoryInvestmentReturn": "Investment Return",
+  "reportsSummary": "Summary",
+  "reportsNetBalance": "Net Balance",
+  "reportsSavingsRate": "Savings Rate",
+  "reportsTxCount": "Transactions",
+  "reportsIncomeCount": "Income transactions",
+  "reportsExpenseCount": "Expense transactions",
+  "reportsAvgExpense": "Average expense",
+  "reportsLargestExpense": "Largest expense",
+  "reportsHighestCategory": "Highest spending category",
+  "reportsIncomeBreakdown": "Income Breakdown",
+  "reportsStatistics": "Statistics",
+  "reportsNoIncome": "No income in this period",
+  "reportsNoExpenses": "No expenses in this period",
+  "reportsSpendingOverTime": "Spending Over Time",
+  "reportsTransactions": "transactions",
+  "reportsOfTotal": "of total"
 }

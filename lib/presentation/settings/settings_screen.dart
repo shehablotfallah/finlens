@@ -411,85 +411,12 @@ class SettingsScreen extends ConsumerWidget {
             .toList(),
       ),
     );
+    // ONLY update the preference. Do NOT request notification permission.
+    // Permission is requested on first app entry (in _EntryGate) when
+    // reminders are enabled. Changing 2→3→4 should never trigger
+    // a permission dialog or "already granted" message.
     if (picked != null) {
       await ref.read(appSettingsProvider.notifier).setReminderDaysBefore(picked);
-      // Only request notification permission if the user is ENABLING
-      // reminders (going from 0/off to >0), NOT on every value change.
-      // This separates the reminder preference from the permission
-      // request — changing 2→3 should NOT trigger a permission dialog.
-      if (picked > 0 && current == 0) {
-        // User just turned reminders ON (was off, now on).
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        if (!context.mounted) return;
-        await _ensureNotificationPermission(context, ref);
-      }
-    }
-  }
-
-  /// Requests notification permission with a proper explanatory dialog.
-  /// Only called when the user FIRST enables reminders (not on every
-  /// value change of the reminder days setting).
-  Future<void> _ensureNotificationPermission(
-      BuildContext context, WidgetRef ref) async {
-    final l = AppLocalizations.of(context);
-    final notif = ref.read(notificationServiceProvider);
-
-    // Check if already granted — if so, don't bother the user.
-    final alreadyEnabled = await notif.areNotificationsEnabled();
-    if (alreadyEnabled) return;
-
-    // Show explanatory dialog before requesting the system permission.
-    final userAgreed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.notifPermTitle),
-        content: Text(l.notifPermMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l.notifPermSkip),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.notifPermAllow),
-          ),
-        ],
-      ),
-    );
-
-    if (userAgreed != true) return;
-    if (!context.mounted) return;
-
-    final result = await notif.requestPermission();
-    if (!context.mounted) return;
-
-    switch (result) {
-      case NotificationPermissionResult.granted:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.notifPermGranted)),
-        );
-      case NotificationPermissionResult.denied:
-      case NotificationPermissionResult.permanentlyDenied:
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(l.notifPermDeniedTitle),
-            content: Text(l.notifPermDeniedBody),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(l.commonCancel),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  notif.openNotificationSettings();
-                },
-                child: Text(l.notifPermOpenSettings),
-              ),
-            ],
-          ),
-        );
     }
   }
 

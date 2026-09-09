@@ -9,6 +9,8 @@ import '../setup/setup_screen.dart';
 import 'app_lock_screen.dart';
 import 'main_shell.dart';
 import 'providers.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../data/services/notification_service.dart';
 
 /// Root widget — applies theme, locale, and routes to the right gate
 /// (onboarding → setup → app lock → main shell).
@@ -115,11 +117,108 @@ class _FinlensAppState extends ConsumerState<FinlensApp>
 ///
 /// Because this is a synchronous gate on `isLocked`, the protected
 /// MainShell is NEVER built before authentication completes.
-class _EntryGate extends ConsumerWidget {
+class _EntryGate extends ConsumerStatefulWidget {
   const _EntryGate();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_EntryGate> createState() => _EntryGateState();
+}
+
+class _EntryGateState extends ConsumerState<_EntryGate> {
+  bool _notifPermissionChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNotificationPermissionOnFirstEntry();
+  }
+
+  /// On first app entry (after onboarding + setup), if bill reminders
+  /// are enabled by default (reminderDaysBefore > 0), check and
+  /// request notification permission.
+  ///
+  /// This is called ONCE when the user first reaches MainShell.
+  /// It does NOT run again on subsequent rebuilds or when the user
+  /// changes reminder days in Settings.
+  Future<void> _checkNotificationPermissionOnFirstEntry() async {
+    if (_notifPermissionChecked) return;
+    _notifPermissionChecked = true;
+
+    final settings = ref.read(appSettingsProvider);
+    // Only request if reminders are enabled by default
+    if (settings.reminderDaysBefore > 0) {
+      final notif = ref.read(notificationServiceProvider);
+      final alreadyEnabled = await notif.areNotificationsEnabled();
+      if (!alreadyEnabled && mounted) {
+        // Small delay to let the UI settle after first build
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        // Request permission with explanatory dialog
+        await _requestPermissionWithDialog(context);
+      }
+    }
+  }
+
+  Future<void> _requestPermissionWithDialog(BuildContext context) async {
+    final l = AppLocalizations.of(context);
+    final notif = ref.read(notificationServiceProvider);
+
+    final userAgreed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.notifPermTitle),
+        content: Text(l.notifPermMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.notifPermSkip),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.notifPermAllow),
+          ),
+        ],
+      ),
+    );
+
+    if (userAgreed != true) return;
+    if (!mounted) return;
+
+    final result = await notif.requestPermission();
+    if (!mounted) return;
+
+    switch (result) {
+      case NotificationPermissionResult.granted:
+        break;
+      case NotificationPermissionResult.denied:
+      case NotificationPermissionResult.permanentlyDenied:
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(l.notifPermDeniedTitle),
+              content: Text(l.notifPermDeniedBody),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(l.commonCancel),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    notif.openNotificationSettings();
+                  },
+                  child: Text(l.notifPermOpenSettings),
+                ),
+              ],
+            ),
+          );
+        }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(appSettingsProvider);
     final lockState = ref.watch(appLockProvider);
 
@@ -132,8 +231,6 @@ class _EntryGate extends ConsumerWidget {
       return const SetupScreen();
     }
     // Gate 3: App lock (PIN/biometric) when enabled and locked.
-    // Even if user navigated past this, the gate is re-evaluated
-    // whenever appLockProvider emits a new state.
     if (settings.appLockEnabled && lockState.isLocked) {
       return const AppLockScreen();
     }

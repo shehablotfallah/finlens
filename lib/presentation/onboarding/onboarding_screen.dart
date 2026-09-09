@@ -148,32 +148,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   /// - Pages 1-3: Custom illustrations in a circular container with
   ///   a subtle background.
   Widget _buildIllustration(String assetPath, ThemeData theme) {
-    if (assetPath == 'assets/images/finlens_logo.png') {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Image.asset(
-          assetPath,
-          width: 140,
-          height: 140,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-    // Illustration — circular container with ClipRRect to prevent
-    // the image from extending outside the rounded boundary.
+    // ALL screens use the SAME rounded rectangle treatment as the
+    // first screen. No circular backgrounds, no different sizes.
     return ClipRRect(
-      borderRadius: BorderRadius.circular(80), // half of width = circle
-      child: Container(
-        width: 160,
-        height: 160,
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Image.asset(
-            assetPath,
-            fit: BoxFit.contain,
-          ),
-        ),
+      borderRadius: BorderRadius.circular(32),
+      child: Image.asset(
+        assetPath,
+        width: 140,
+        height: 140,
+        fit: BoxFit.cover,
       ),
     );
   }
