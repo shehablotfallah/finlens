@@ -153,6 +153,7 @@
   "txCategoryEducation": "Education",
   "txCategorySalary": "Salary",
   "txCategoryFreelance": "Freelance",
+  "txCategoryInvestmentReturn": "Investment Return",
   "txCategoryOther": "Other",
   "txDeleteConfirm": "Delete this transaction?",
   "txDeleteConfirmBody": "This cannot be undone.",

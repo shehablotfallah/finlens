@@ -172,6 +172,24 @@ class _BalanceAndBudgetCard extends ConsumerWidget {
   });
   final int salaryDay;
   final String currency;
+
+  String _categoryLabel(AppLocalizations l, String id) {
+    return switch (id) {
+      'food' => l.txCategoryFood,
+      'transport' => l.txCategoryTransport,
+      'bills' => l.txCategoryBills,
+      'entertainment' => l.txCategoryEntertainment,
+      'shopping' => l.txCategoryShopping,
+      'health' => l.txCategoryHealth,
+      'education' => l.txCategoryEducation,
+      'salary' => l.txCategorySalary,
+      'freelance' => l.txCategoryFreelance,
+      'investment_return' => l.txCategoryInvestmentReturn,
+      'other' => l.txCategoryOther,
+      _ => id,
+    };
+  }
+
   final DateTime monthStart;
   final DateTime monthEnd;
 
@@ -409,6 +427,7 @@ class _QuickAddGrid extends ConsumerWidget {
       'shopping' => l.txCategoryShopping,
       'health' => l.txCategoryHealth,
       'education' => l.txCategoryEducation,
+      'investment_return' => l.txCategoryInvestmentReturn,
       'other' => l.txCategoryOther,
       _ => id,
     };
@@ -540,6 +559,7 @@ class _UpcomingBillsCard extends ConsumerWidget {
       'education' => l.txCategoryEducation,
       'salary' => l.txCategorySalary,
       'freelance' => l.txCategoryFreelance,
+      'investment_return' => l.txCategoryInvestmentReturn,
       'other' => l.txCategoryOther,
       _ => id,
     };
@@ -630,6 +650,23 @@ class _TopCategoriesCard extends ConsumerWidget {
   final DateTime monthEnd;
   final String currency;
 
+  String _categoryLabel(AppLocalizations l, String id) {
+    return switch (id) {
+      'food' => l.txCategoryFood,
+      'transport' => l.txCategoryTransport,
+      'bills' => l.txCategoryBills,
+      'entertainment' => l.txCategoryEntertainment,
+      'shopping' => l.txCategoryShopping,
+      'health' => l.txCategoryHealth,
+      'education' => l.txCategoryEducation,
+      'salary' => l.txCategorySalary,
+      'freelance' => l.txCategoryFreelance,
+      'investment_return' => l.txCategoryInvestmentReturn,
+      'other' => l.txCategoryOther,
+      _ => id,
+    };
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
@@ -652,7 +689,7 @@ class _TopCategoriesCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 120,
+              height: 180,
               child: stats == null
                   ? const Center(child: CircularProgressIndicator())
                   : FutureBuilder<Map<String, double>>(
@@ -705,7 +742,7 @@ class _TopCategoriesCard extends ConsumerWidget {
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
-                                        top[i].key[0].toUpperCase(),
+                                        _categoryLabel(l, top[i].key),
                                         style: theme.textTheme.labelSmall,
                                       ),
                                     );

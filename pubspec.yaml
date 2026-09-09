@@ -72,6 +72,9 @@ dependencies:
   # Permission handling (notifications, etc.)
   permission_handler: ^11.3.1
 
+  # Modern icon system
+  lucide_icons: ^0.257.0
+
   # App lifecycle
   flutter_hooks: ^0.20.5
   hooks_riverpod: ^2.5.2
@@ -96,6 +99,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/onboarding/
     - assets/icons/
 
 flutter_intl:

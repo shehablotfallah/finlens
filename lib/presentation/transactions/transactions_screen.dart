@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/categories.dart';
@@ -57,7 +58,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final settings = ref.watch(appSettingsProvider);
     final repoAsync = ref.watch(transactionRepositoryProvider);
 
     return Scaffold(
@@ -65,12 +65,51 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         title: Text(l.navTransactions),
         actions: [
           PopupMenuButton<TransactionType?>(
-            icon: const Icon(Icons.filter_list_outlined),
+            icon: const Icon(LucideIcons.filter),
             onSelected: (v) => setState(() => _filterType = v),
             itemBuilder: (_) => [
-              PopupMenuItem(value: null, child: Text(l.commonAll)),
-              PopupMenuItem(value: TransactionType.expense, child: Text(l.txTypeExpense)),
-              PopupMenuItem(value: TransactionType.income, child: Text(l.txTypeIncome)),
+              PopupMenuItem(
+                value: null,
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.layoutGrid,
+                        size: 18,
+                        color: _filterType == null
+                            ? theme.colorScheme.primary
+                            : null),
+                    const SizedBox(width: 8),
+                    Text(l.commonAll),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: TransactionType.expense,
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.arrowDownLeft,
+                        size: 18,
+                        color: _filterType == TransactionType.expense
+                            ? theme.colorScheme.primary
+                            : null),
+                    const SizedBox(width: 8),
+                    Text(l.txTypeExpense),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: TransactionType.income,
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.arrowUpRight,
+                        size: 18,
+                        color: _filterType == TransactionType.income
+                            ? theme.colorScheme.primary
+                            : null),
+                    const SizedBox(width: 8),
+                    Text(l.txTypeIncome),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -80,63 +119,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text(l.commonError)),
           data: (repo) {
-            return StreamBuilder<List<Transaction>>(
-              stream: repo.watchAll(),
-              builder: (context, snap) {
-                if (!snap.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                var list = snap.data!;
-                if (_filterType != null) {
-                  list = list.where((t) => t.type == _filterType).toList();
-                }
-                list.sort((a, b) => b.date.compareTo(a.date));
-                if (list.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.receipt_long_outlined,
-                            size: 64, color: theme.colorScheme.outline),
-                        const SizedBox(height: 12),
-                        Text(l.homeNoTransactionsYet,
-                            style: theme.textTheme.bodyLarge),
-                      ],
-                    ),
-                  );
-                }
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: list.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
-                  itemBuilder: (context, i) {
-                    final t = list[i];
-                    return _SwipeableTxRow(
-                      tx: t,
-                      currency: settings.baseCurrency,
-                      onEdit: () async {
-                        await showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          useSafeArea: true,
-                          builder: (_) => TransactionEditSheet(prefill: t),
-                        );
-                      },
-                      onDelete: () async {
-                        final confirmed = await _confirmDelete(context);
-                        if (confirmed == true) {
-                          await repo.delete(t.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(l.txDeleted)),
-                            );
-                          }
-                        }
-                      },
-                    );
-                  },
-                );
-              },
+            // CRITICAL FIX: The StreamBuilder must NOT be recreated
+            // on every setState. Extract it into a separate widget
+            // that receives the filter as a parameter.
+            return _TransactionList(
+              repo: repo,
+              filterType: _filterType,
+              currency: ref.watch(appSettingsProvider).baseCurrency,
             );
           },
         ),
@@ -148,8 +137,110 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           useSafeArea: true,
           builder: (_) => const TransactionEditSheet(),
         ),
-        child: const Icon(Icons.add),
+        child: const Icon(LucideIcons.plus),
       ),
+    );
+  }
+}
+
+/// Separate widget for the transaction list.
+///
+/// The StreamBuilder subscribes to `repo.watchAll()` ONCE in initState
+/// and does NOT re-subscribe when the filter changes. This fixes the
+/// "All" filter bug where switching back to All showed an empty list.
+class _TransactionList extends StatefulWidget {
+  const _TransactionList({
+    required this.repo,
+    required this.filterType,
+    required this.currency,
+  });
+
+  final dynamic repo;
+  final TransactionType? filterType;
+  final String currency;
+
+  @override
+  State<_TransactionList> createState() => _TransactionListState();
+}
+
+class _TransactionListState extends State<_TransactionList> {
+  late Stream<List<Transaction>> _stream;
+
+  @override
+  void initState() {
+    super.initState();
+    _stream = widget.repo.watchAll();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TransactionList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repo != widget.repo) {
+      _stream = widget.repo.watchAll();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return StreamBuilder<List<Transaction>>(
+      stream: _stream,
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        var list = snap.data!;
+        if (widget.filterType != null) {
+          list = list.where((t) => t.type == widget.filterType).toList();
+        }
+        list.sort((a, b) => b.date.compareTo(a.date));
+        if (list.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(LucideIcons.receipt,
+                    size: 64, color: theme.colorScheme.outline),
+                const SizedBox(height: 12),
+                Text(l.homeNoTransactionsYet,
+                    style: theme.textTheme.bodyLarge),
+              ],
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+          itemBuilder: (context, i) {
+            final t = list[i];
+            return _SwipeableTxRow(
+              tx: t,
+              currency: widget.currency,
+              onEdit: () async {
+                await showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  builder: (_) => TransactionEditSheet(prefill: t),
+                );
+              },
+              onDelete: () async {
+                final confirmed = await _confirmDelete(context);
+                if (confirmed == true) {
+                  await widget.repo.delete(t.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l.txDeleted)),
+                    );
+                  }
+                }
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -176,9 +267,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 }
 
-/// A row that supports swipe (start and end) to reveal edit / delete actions.
-/// Direction of swipe mirrors in RTL: in Arabic, "leading" is right-to-left
-/// because the entire layout direction flips.
 class _SwipeableTxRow extends StatelessWidget {
   const _SwipeableTxRow({
     required this.tx,
@@ -196,35 +284,36 @@ class _SwipeableTxRow extends StatelessWidget {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context);
     final isIncome = tx.type == TransactionType.income;
-    final color = (PredefinedCategories.byId(tx.categoryId)?.colorValue ?? FinlensColors.neutral);
+    final cat = PredefinedCategories.byId(tx.categoryId);
+    final color = cat?.colorValue ?? FinlensColors.neutral;
     return Dismissible(
       key: ValueKey(tx.id),
       background: Container(
         color: FinlensColors.income,
         alignment: AlignmentDirectional.centerStart,
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: const Icon(Icons.edit, color: Colors.white),
+        child: const Icon(LucideIcons.pencil, color: Colors.white),
       ),
       secondaryBackground: Container(
         color: FinlensColors.expense,
         alignment: AlignmentDirectional.centerEnd,
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: const Icon(LucideIcons.trash2, color: Colors.white),
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           onEdit();
-          return false; // Don't actually dismiss — opening edit
+          return false;
         } else {
           onDelete();
-          return false; // We handle delete manually with confirmation
+          return false;
         }
       },
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withValues(alpha: 0.15),
           child: Icon(
-            PredefinedCategories.byId(tx.categoryId)?.icon ?? Icons.category,
+            cat?.icon ?? LucideIcons.circle,
             color: color,
             size: 20,
           ),
@@ -264,6 +353,7 @@ class _SwipeableTxRow extends StatelessWidget {
       'education' => l.txCategoryEducation,
       'salary' => l.txCategorySalary,
       'freelance' => l.txCategoryFreelance,
+      'investment_return' => l.txCategoryInvestmentReturn,
       'other' => l.txCategoryOther,
       _ => id,
     };

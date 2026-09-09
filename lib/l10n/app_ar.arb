@@ -149,6 +149,7 @@
   "txCategoryEducation": "تعليم",
   "txCategorySalary": "راتب",
   "txCategoryFreelance": "عمل حر",
+  "txCategoryInvestmentReturn": "عائد استثماري",
   "txCategoryOther": "أخرى",
   "txDeleteConfirm": "حذف هذه المعاملة؟",
   "txDeleteConfirmBody": "لا يمكن التراجع عن هذا.",

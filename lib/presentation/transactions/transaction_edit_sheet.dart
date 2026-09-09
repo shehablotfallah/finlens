@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -14,17 +15,12 @@ import '../common/inline_error_banner.dart';
 
 /// Bottom-sheet used for both quick-add and edit of a transaction.
 ///
-/// SAVE FLOW (correct order):
-///   1. Validate (amount > 0, currency set, category set)
-///   2. Disable Save button (prevent duplicate submission)
-///   3. Show inline loading on the Save button
-///   4. Await repository write (DB INSERT/UPDATE)
-///   5. On success → invalidate providers → snackbar → pop
-///   6. On failure → keep user on form → re-enable Save → show localized error
-///
-/// CRITICAL: _saving is ALWAYS reset in a `finally` block so the UI
-/// can never get stuck in a loading state, even if an unexpected
-/// exception escapes.
+/// FORM STATE ISOLATION (CRITICAL FIX):
+/// When the user switches between Expense and Income, the form state
+/// is FULLY RESET — the category, amount, note, and all other fields
+/// are cleared so that Expense and Income drafts do NOT contaminate
+/// each other. The only exception is the `prefill` (edit mode), where
+/// we're editing an existing transaction and want to preserve its values.
 class TransactionEditSheet extends ConsumerStatefulWidget {
   const TransactionEditSheet({super.key, this.prefill});
   final Transaction? prefill;
@@ -39,7 +35,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
   late final TextEditingController _amountCtrl;
   late final TextEditingController _noteCtrl;
   late DateTime _date;
-  late String _categoryId;
+  late String? _categoryId; // null = not selected (required)
   late String _currency;
   late bool _recurring;
   late RecurrenceInterval _interval;
@@ -49,6 +45,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
   bool _isEdit = false;
   bool _saving = false;
   String? _amountError;
+  String? _categoryError;
   String? _dbError;
 
   @override
@@ -61,17 +58,16 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
         text: p?.amount == 0 || p?.amount == null ? '' : p!.amount.toString());
     _noteCtrl = TextEditingController(text: p?.note ?? '');
     _date = p?.date ?? DateTime.now();
-    _categoryId = p?.categoryId ??
-        (_type == TransactionType.expense
-            ? PredefinedCategories.expenses.first.id
-            : PredefinedCategories.incomes.first.id);
+    // Category: if editing an existing transaction, use its category.
+    // If creating a new one, start with NO category selected (null)
+    // so the user must explicitly choose one — category is REQUIRED.
+    _categoryId = p?.categoryId;
     _currency = p?.currency ?? 'EGP';
     _recurring = p?.isRecurring ?? false;
     _interval = p?.recurrenceInterval ?? RecurrenceInterval.monthly;
     _customDays = p?.recurrenceCustomDays ?? 14;
     _reminderDays =
         p?.reminderDaysBefore ?? AppConstants.defaultReminderDaysBefore;
-    // Clear amount error as the user types.
     _amountCtrl.addListener(() {
       if (_amountError != null && _amountCtrl.text.trim().isNotEmpty) {
         setState(() => _amountError = null);
@@ -86,28 +82,65 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     super.dispose();
   }
 
-  /// Validates the form and returns true if it can be saved.
+  /// Switches between Expense and Income with FULL STATE RESET.
+  ///
+  /// This is the fix for the form state leak bug. When switching types:
+  ///   - Category is reset to null (must re-select)
+  ///   - Amount is cleared
+  ///   - Note is cleared
+  ///   - Recurring is reset to false
+  ///   - Date stays (reasonable)
+  ///   - Currency stays (reasonable)
+  void _switchType(TransactionType newType) {
+    if (_type == newType) return;
+    if (_isEdit) return; // Don't reset when editing
+    setState(() {
+      _type = newType;
+      _categoryId = null;
+      _amountCtrl.clear();
+      _noteCtrl.clear();
+      _recurring = false;
+      _amountError = null;
+      _categoryError = null;
+      _dbError = null;
+    });
+  }
+
+  bool _isFormValid() {
+    final raw = _amountCtrl.text.trim();
+    final amount = double.tryParse(raw);
+    final amountValid = raw.isNotEmpty && amount != null && amount > 0;
+    final categoryValid = _categoryId != null && _categoryId!.isNotEmpty;
+    return amountValid && categoryValid;
+  }
+
   bool _validate(AppLocalizations l) {
+    bool valid = true;
     final raw = _amountCtrl.text.trim();
     final amount = double.tryParse(raw);
     if (raw.isEmpty) {
       setState(() => _amountError = l.errorAmountRequired);
-      return false;
-    }
-    if (amount == null || amount <= 0) {
+      valid = false;
+    } else if (amount == null || amount <= 0) {
       setState(() => _amountError = l.errorAmountInvalid);
-      return false;
+      valid = false;
+    } else {
+      setState(() => _amountError = null);
     }
-    setState(() => _amountError = null);
-    return true;
+    if (_categoryId == null || _categoryId!.isEmpty) {
+      setState(() => _categoryError = l.errorCategoryRequired);
+      valid = false;
+    } else {
+      setState(() => _categoryError = null);
+    }
+    return valid;
   }
 
   Future<void> _save() async {
     final l = AppLocalizations.of(context);
-    if (_saving) return; // Prevent duplicate submission
+    if (_saving) return;
     if (!_validate(l)) return;
 
-    // Clear any previous DB error.
     setState(() {
       _saving = true;
       _dbError = null;
@@ -128,14 +161,15 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
         currency: _currency,
         amountInBase: base,
         exchangeRateAtTime: rate,
-        categoryId: _categoryId,
+        categoryId: _categoryId!,
         date: _date,
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
         isRecurring: _recurring,
         recurrenceInterval: _recurring ? _interval : null,
-        recurrenceCustomDays: _recurring && _interval == RecurrenceInterval.custom
-            ? _customDays
-            : null,
+        recurrenceCustomDays:
+            _recurring && _interval == RecurrenceInterval.custom
+                ? _customDays
+                : null,
         reminderDaysBefore: _recurring ? _reminderDays : null,
         createdAt: widget.prefill?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
@@ -148,8 +182,6 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
         await repo.insert(tx);
       }
 
-      // If recurring, schedule a reminder (best-effort; failure here
-      // shouldn't fail the save).
       if (tx.isRecurring) {
         try {
           final notif = ref.read(notificationServiceProvider);
@@ -162,34 +194,22 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
             dueDate: tx.date,
             daysBefore: tx.reminderDaysBefore ?? 2,
           );
-        } catch (_) {
-          // Notification scheduling failure is non-fatal.
-        }
+        } catch (_) {}
       }
 
-      // Force refresh of any stream-based providers so the dashboard /
-      // transactions list reflects the new row immediately.
       ref.invalidate(statsRepositoryProvider);
 
       if (mounted) {
-        // Success → snackbar (lightweight transient feedback is OK here)
-        // then navigate away.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isEdit ? l.txUpdated : l.txAdded)),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
-      // Database/validation failure → show INLINE error banner above
-      // the Save button (NOT a transient SnackBar). The user stays on
-      // the form with their data preserved so they can retry.
       if (mounted) {
         setState(() => _dbError = l.errorSaveTransactionBody);
       }
     } finally {
-      // ALWAYS clear the loading state, even if an unexpected exception
-      // escaped the try block. This prevents the UI from being stuck
-      // in loading forever.
       if (mounted) {
         setState(() => _saving = false);
       }
@@ -246,6 +266,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final formValid = _isFormValid();
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -277,7 +298,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                 if (_isEdit)
                   IconButton(
                     onPressed: _saving ? null : _delete,
-                    icon: const Icon(Icons.delete_outline,
+                    icon: const Icon(LucideIcons.trash2,
                         color: FinlensColors.expense),
                   ),
               ],
@@ -288,19 +309,19 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                 ButtonSegment(
                   value: TransactionType.expense,
                   label: Text(l.txTypeExpense),
-                  icon: const Icon(Icons.remove_circle_outline),
+                  icon: const Icon(LucideIcons.arrowDownLeft),
                 ),
                 ButtonSegment(
                   value: TransactionType.income,
                   label: Text(l.txTypeIncome),
-                  icon: const Icon(Icons.add_circle_outline),
+                  icon: const Icon(LucideIcons.arrowUpRight),
                 ),
               ],
               selected: {_type},
-              onSelectionChanged: _saving ? null : (s) => setState(() => _type = s.first),
+              onSelectionChanged:
+                  _saving ? null : (s) => _switchType(s.first),
             ),
             const SizedBox(height: 16),
-            // Amount + currency
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -318,7 +339,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                     decoration: InputDecoration(
                       labelText: l.commonAmount,
                       hintText: l.txHintAmount,
-                      prefixIcon: const Icon(Icons.attach_money),
+                      prefixIcon: const Icon(LucideIcons.wallet),
                       errorText: _amountError,
                     ),
                     enabled: !_saving,
@@ -339,9 +360,26 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            // Category grid
-            Text(l.commonCategory, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 16),
+            // Category selection — REQUIRED
+            Row(
+              children: [
+                Text(l.commonCategory, style: theme.textTheme.bodySmall),
+                const SizedBox(width: 4),
+                Text('*',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.error)),
+              ],
+            ),
+            if (_categoryError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _categoryError!,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.error),
+                ),
+              ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -355,7 +393,12 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                   label: Text(_categoryLabel(l, c.id)),
                   avatar: Icon(c.icon, color: c.colorValue, size: 18),
                   selected: selected,
-                  onSelected: _saving ? null : (_) => setState(() => _categoryId = c.id),
+                  onSelected: _saving
+                      ? null
+                      : (_) => setState(() {
+                            _categoryId = c.id;
+                            _categoryError = null;
+                          }),
                 );
               }).toList(),
             ),
@@ -367,7 +410,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
               decoration: InputDecoration(
                 labelText: l.commonNote,
                 hintText: l.txHintNote,
-                prefixIcon: const Icon(Icons.notes),
+                prefixIcon: const Icon(LucideIcons.fileText),
               ),
             ),
             const SizedBox(height: 12),
@@ -386,7 +429,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
               child: InputDecorator(
                 decoration: InputDecoration(
                   labelText: l.commonDate,
-                  prefixIcon: const Icon(Icons.calendar_today_outlined),
+                  prefixIcon: const Icon(LucideIcons.calendar),
                 ),
                 child: Text(
                   '${_date.day}/${_date.month}/${_date.year}',
@@ -451,9 +494,6 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
               ),
             ],
             const SizedBox(height: 20),
-            // Inline error banner — shown only when a DB error occurs.
-            // NOT a SnackBar: this stays visible until the user retries
-            // or dismisses it.
             if (_dbError != null) ...[
               InlineErrorBanner(
                 message: _dbError!,
@@ -464,7 +504,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
               const SizedBox(height: 12),
             ],
             FilledButton(
-              onPressed: _saving ? null : _save,
+              onPressed: (_saving || !formValid) ? null : _save,
               child: _saving
                   ? const SizedBox(
                       width: 20,
@@ -491,6 +531,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
       'education' => l.txCategoryEducation,
       'salary' => l.txCategorySalary,
       'freelance' => l.txCategoryFreelance,
+      'investment_return' => l.txCategoryInvestmentReturn,
       'other' => l.txCategoryOther,
       _ => id,
     };

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../bills/bills_screen.dart';
@@ -9,11 +10,6 @@ import '../settings/settings_screen.dart';
 import '../transactions/transactions_screen.dart';
 
 /// Main app shell — bottom navigation across the 5 top-level destinations.
-///
-/// Lifecycle observation (for app-lock enforcement) is handled at the
-/// `FinlensApp` root, NOT here. Previously this widget attached its own
-/// observer, which meant lock state was lost when the user was in
-/// onboarding/setup or when MainShell wasn't yet built on cold start.
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
@@ -43,28 +39,28 @@ class _MainShellState extends ConsumerState<MainShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
+            icon: const Icon(LucideIcons.layoutGrid),
+            selectedIcon: const Icon(LucideIcons.layoutGrid),
             label: l.navHome,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.receipt_long_outlined),
-            selectedIcon: const Icon(Icons.receipt_long),
+            icon: const Icon(LucideIcons.receipt),
+            selectedIcon: const Icon(LucideIcons.receipt),
             label: l.navTransactions,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.event_outlined),
-            selectedIcon: const Icon(Icons.event),
+            icon: const Icon(LucideIcons.calendarClock),
+            selectedIcon: const Icon(LucideIcons.calendarClock),
             label: l.navBills,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.bar_chart_outlined),
-            selectedIcon: const Icon(Icons.bar_chart),
+            icon: const Icon(LucideIcons.barChart3),
+            selectedIcon: const Icon(LucideIcons.barChart3),
             label: l.navReports,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
+            icon: const Icon(LucideIcons.settings),
+            selectedIcon: const Icon(LucideIcons.settings),
             label: l.navSettings,
           ),
         ],
