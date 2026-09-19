@@ -9,7 +9,16 @@ import '../../core/utils/format.dart';
 import '../../domain/entities/transaction.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
+import '../common/skeleton.dart';
 import 'transaction_edit_sheet.dart';
+
+/// Explicit filter enum so PopupMenuButton never receives `null`
+/// (which Flutter treats as menu dismissal/cancellation).
+enum TransactionFilter {
+  all,
+  expense,
+  income,
+}
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -20,7 +29,7 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
-  TransactionType? _filterType;
+  TransactionFilter _filter = TransactionFilter.all;
 
   @override
   void initState() {
@@ -64,17 +73,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       appBar: AppBar(
         title: Text(l.navTransactions),
         actions: [
-          PopupMenuButton<TransactionType?>(
+          PopupMenuButton<TransactionFilter>(
             icon: const Icon(LucideIcons.filter),
-            onSelected: (v) => setState(() => _filterType = v),
+            onSelected: (v) => setState(() => _filter = v),
             itemBuilder: (_) => [
               PopupMenuItem(
-                value: null,
+                value: TransactionFilter.all,
                 child: Row(
                   children: [
                     Icon(LucideIcons.layoutGrid,
                         size: 18,
-                        color: _filterType == null
+                        color: _filter == TransactionFilter.all
                             ? theme.colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
@@ -83,12 +92,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 ),
               ),
               PopupMenuItem(
-                value: TransactionType.expense,
+                value: TransactionFilter.expense,
                 child: Row(
                   children: [
                     Icon(LucideIcons.arrowDownLeft,
                         size: 18,
-                        color: _filterType == TransactionType.expense
+                        color: _filter == TransactionFilter.expense
                             ? theme.colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
@@ -97,12 +106,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 ),
               ),
               PopupMenuItem(
-                value: TransactionType.income,
+                value: TransactionFilter.income,
                 child: Row(
                   children: [
                     Icon(LucideIcons.arrowUpRight,
                         size: 18,
-                        color: _filterType == TransactionType.income
+                        color: _filter == TransactionFilter.income
                             ? theme.colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
@@ -119,13 +128,41 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text(l.commonError)),
           data: (repo) {
-            // CRITICAL FIX: The StreamBuilder must NOT be recreated
-            // on every setState. Extract it into a separate widget
-            // that receives the filter as a parameter.
-            return _TransactionList(
-              repo: repo,
-              filterType: _filterType,
-              currency: ref.watch(appSettingsProvider).baseCurrency,
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                  child: SegmentedButton<TransactionFilter>(
+                    segments: [
+                      ButtonSegment(
+                        value: TransactionFilter.all,
+                        label: Text(l.commonAll),
+                        icon: const Icon(LucideIcons.layoutGrid, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: TransactionFilter.expense,
+                        label: Text(l.txTypeExpense),
+                        icon: const Icon(LucideIcons.arrowDownLeft, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: TransactionFilter.income,
+                        label: Text(l.txTypeIncome),
+                        icon: const Icon(LucideIcons.arrowUpRight, size: 16),
+                      ),
+                    ],
+                    selected: {_filter},
+                    onSelectionChanged: (s) =>
+                        setState(() => _filter = s.first),
+                  ),
+                ),
+                Expanded(
+                  child: _TransactionList(
+                    repo: repo,
+                    filter: _filter,
+                    currency: ref.watch(appSettingsProvider).baseCurrency,
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -145,25 +182,25 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
 /// Separate widget for the transaction list.
 ///
-/// The StreamBuilder subscribes to `repo.watchAll()` ONCE in initState
-/// and does NOT re-subscribe when the filter changes. This fixes the
-/// "All" filter bug where switching back to All showed an empty list.
-class _TransactionList extends StatefulWidget {
+/// The StreamBuilder subscribes to `repo.watchAll()` in initState
+/// and does NOT re-subscribe when the filter changes. This preserves
+/// cached stream data and ensures instant, glitch-free filtering.
+class _TransactionList extends ConsumerStatefulWidget {
   const _TransactionList({
     required this.repo,
-    required this.filterType,
+    required this.filter,
     required this.currency,
   });
 
   final dynamic repo;
-  final TransactionType? filterType;
+  final TransactionFilter filter;
   final String currency;
 
   @override
-  State<_TransactionList> createState() => _TransactionListState();
+  ConsumerState<_TransactionList> createState() => _TransactionListState();
 }
 
-class _TransactionListState extends State<_TransactionList> {
+class _TransactionListState extends ConsumerState<_TransactionList> {
   late Stream<List<Transaction>> _stream;
 
   @override
@@ -188,11 +225,18 @@ class _TransactionListState extends State<_TransactionList> {
       stream: _stream,
       builder: (context, snap) {
         if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: 6,
+            separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+            itemBuilder: (_, __) => const TransactionSkeletonRow(),
+          );
         }
         var list = snap.data!;
-        if (widget.filterType != null) {
-          list = list.where((t) => t.type == widget.filterType).toList();
+        if (widget.filter == TransactionFilter.expense) {
+          list = list.where((t) => t.type == TransactionType.expense).toList();
+        } else if (widget.filter == TransactionFilter.income) {
+          list = list.where((t) => t.type == TransactionType.income).toList();
         }
         list.sort((a, b) => b.date.compareTo(a.date));
         if (list.isEmpty) {
@@ -230,6 +274,16 @@ class _TransactionListState extends State<_TransactionList> {
                 final confirmed = await _confirmDelete(context);
                 if (confirmed == true) {
                   await widget.repo.delete(t.id);
+                  if (t.isRecurring) {
+                    try {
+                      final notif = ref.read(notificationServiceProvider);
+                      await notif.cancelReminder(t.hashCode & 0x7FFFFFFF);
+                      final notifRepo =
+                          await ref.read(notificationRepositoryProvider.future);
+                      await notifRepo.delete('bill_${t.id}');
+                    } catch (_) {}
+                  }
+                  ref.invalidate(statsRepositoryProvider);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(l.txDeleted)),

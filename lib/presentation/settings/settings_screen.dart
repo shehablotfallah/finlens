@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -144,11 +147,37 @@ class SettingsScreen extends ConsumerWidget {
               leading: const Icon(Icons.file_download_outlined),
               title: Text(l.settingsExportAll),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon')),
-                );
+              onTap: () async {
+                try {
+                  final repo =
+                      await ref.read(transactionRepositoryProvider.future);
+                  final txs = await repo.getAll();
+                  final currentSettings = ref.read(appSettingsProvider);
+                  final exporter = ref.read(exportServiceProvider);
+                  final file = await exporter.exportAllDataJson(
+                    transactions: txs,
+                    settings: currentSettings.toJson(),
+                  );
+                  await exporter.shareFile(file, subject: 'Finlens JSON Backup');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l.reportsSharedTo)),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l.commonError)),
+                    );
+                  }
+                }
               },
+            ),
+            ListTile(
+              leading: const Icon(Icons.file_upload_outlined),
+              title: Text(l.settingsImport),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _importBackup(context, ref, l),
             ),
             ListTile(
               leading: const Icon(Icons.delete_forever_outlined,
@@ -545,6 +574,73 @@ class SettingsScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l.commonDone)),
       );
+    }
+  }
+
+  Future<void> _importBackup(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+  ) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final path = result.files.single.path;
+      if (path == null) return;
+      final file = File(path);
+      final jsonString = await file.readAsString();
+      final exporter = ref.read(exportServiceProvider);
+      final backup = exporter.parseBackupJson(jsonString);
+
+      if (!context.mounted) return;
+      final count = backup.transactions.length;
+      final isAr = Localizations.localeOf(context).languageCode == 'ar';
+      final confirmMsg = isAr
+          ? 'استيراد $count معاملة من النسخة الاحتياطية؟ سيتم تحديث المعاملات ذات المعرفات المتطابقة.'
+          : 'Import $count transaction(s) from backup? Matching transactions will be updated.';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.settingsImport),
+          content: Text(confirmMsg),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.settingsImport),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final repo = await ref.read(transactionRepositoryProvider.future);
+      for (final tx in backup.transactions) {
+        await repo.insert(tx);
+      }
+      ref.invalidate(statsRepositoryProvider);
+      ref.invalidate(transactionRepositoryProvider);
+
+      if (context.mounted) {
+        final successMsg = isAr
+            ? 'تم استيراد $count معاملة بنجاح'
+            : 'Successfully imported $count transaction(s)';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(successMsg)),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.commonError)),
+        );
+      }
     }
   }
 }

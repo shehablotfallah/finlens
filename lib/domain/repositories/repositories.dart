@@ -9,6 +9,7 @@ import '../entities/transaction.dart';
 abstract class TransactionRepository {
   Future<List<Transaction>> getAll();
   Stream<List<Transaction>> watchAll();
+  Stream<List<Transaction>> watchRecurring();
   Future<Transaction?> getById(String id);
   Future<List<Transaction>> getByDateRange(DateTime start, DateTime end);
   Future<List<Transaction>> getRecurring();
@@ -39,6 +40,7 @@ abstract class InstallmentPlanRepository {
 /// Repository contract for persisted monthly insights.
 abstract class InsightRepository {
   Future<MonthlyInsight?> getForMonth(String monthKey);
+  Stream<MonthlyInsight?> watchForMonth(String monthKey);
   Future<List<MonthlyInsight>> getAll();
   Future<void> save(MonthlyInsight insight);
   Future<void> deleteAll();

@@ -24,6 +24,14 @@ class TransactionRepositoryImpl implements TransactionRepository {
   }
 
   @override
+  Stream<List<domain.Transaction>> watchRecurring() {
+    return (_db.select(_db.transactions)
+          ..where((t) => t.isRecurring.equals(true)))
+        .watch()
+        .map((rows) => rows.map(_toDomain).toList());
+  }
+
+  @override
   Future<domain.Transaction?> getById(String id) async {
     final row = await (_db.select(_db.transactions)
           ..where((t) => t.id.equals(id)))
@@ -281,6 +289,24 @@ class InsightRepositoryImpl implements InsightRepository {
       generatedAt: row.generatedAt,
       locale: row.locale,
     );
+  }
+
+  @override
+  Stream<domain.MonthlyInsight?> watchForMonth(String monthKey) {
+    return (_db.select(_db.monthlyInsights)
+          ..where((t) => t.monthKey.equals(monthKey))
+          ..orderBy([(t) => OrderingTerm.desc(t.generatedAt)])
+          ..limit(1))
+        .watchSingleOrNull()
+        .map((row) => row == null
+            ? null
+            : domain.MonthlyInsight(
+                id: row.id,
+                monthKey: row.monthKey,
+                text: row.body,
+                generatedAt: row.generatedAt,
+                locale: row.locale,
+              ));
   }
 
   @override

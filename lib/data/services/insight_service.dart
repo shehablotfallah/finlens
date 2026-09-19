@@ -7,6 +7,9 @@ import '../../domain/entities/transaction.dart';
 import '../../domain/repositories/repositories.dart';
 import '../../domain/usecases/usecases.dart';
 
+import '../../domain/entities/app_notification.dart';
+import '../repositories/notification_repository_impl.dart';
+
 /// Swappable abstraction for the LLM provider used by [InsightServiceImpl].
 ///
 /// v1 ships a [DummyLocalInsightProvider] that never makes a network call —
@@ -26,22 +29,106 @@ abstract class LlmInsightProvider {
   });
 }
 
+/// Helper to format structured Monthly Vision insights dynamically based
+/// on the user's active locale (AR/EN), preventing stale language persistence.
+class MonthlyVisionFormatter {
+  static String format(String rawText, String locale, {String baseCurrency = 'EGP'}) {
+    try {
+      final data = jsonDecode(rawText);
+      if (data is Map<String, dynamic> && data['type'] == 'local_vision') {
+        final isAr = locale.startsWith('ar');
+        final cur = data['currency'] as String? ?? baseCurrency;
+        final hasSpending = data['hasSpending'] as bool? ?? false;
+
+        if (!hasSpending) {
+          return isAr
+              ? 'لم تُسجَّل مصروفات هذا الشهر بعد. ابدأ بإضافة معاملاتك اليومية لرؤية تحليلات مفيدة هنا.'
+              : 'No spending recorded this month yet. Start adding daily transactions to see useful analysis here.';
+        }
+
+        final topCat = data['topCat'] as String? ?? 'other';
+        final topAmount = (data['topAmount'] as num?)?.toDouble() ?? 0.0;
+        final pctOfTotal = (data['pctOfTotal'] as num?)?.toInt() ?? 0;
+        final avgForCat = (data['avgForCat'] as num?)?.toDouble() ?? 0.0;
+        final pctVsAvg = (data['pctVsAvg'] as num?)?.toInt();
+        final fmtAmount = topAmount.toStringAsFixed(2);
+
+        if (isAr) {
+          final catName = _categoryNameAr(topCat);
+          if (avgForCat > 0 && pctVsAvg != null) {
+            final comparison = pctVsAvg >= 0
+                ? 'بزيادة ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر'
+                : 'بانخفاض ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر';
+            return 'فئة "$catName" هي أعلى إنفاقك هذا الشهر بمبلغ $fmtAmount $cur ($pctOfTotal% من الإجمالي)، $comparison.';
+          }
+          return 'فئة "$catName" هي أعلى إنفاقك هذا الشهر بمبلغ $fmtAmount $cur ($pctOfTotal% من الإجمالي).';
+        } else {
+          final catName = _categoryNameEn(topCat);
+          if (avgForCat > 0 && pctVsAvg != null) {
+            final comparison = pctVsAvg >= 0
+                ? 'up ${pctVsAvg.abs()}% vs your 3-month average'
+                : 'down ${pctVsAvg.abs()}% vs your 3-month average';
+            return '"$catName" is your highest spending category this month at $fmtAmount $cur ($pctOfTotal% of total), $comparison.';
+          }
+          return '"$catName" is your highest spending category this month at $fmtAmount $cur ($pctOfTotal% of total).';
+        }
+      }
+    } catch (_) {}
+    return rawText;
+  }
+
+  static String _categoryNameAr(String id) => {
+        'food': 'الطعام والشراب',
+        'transport': 'المواصلات',
+        'bills': 'الفواتير',
+        'entertainment': 'الترفيه',
+        'shopping': 'التسوّق',
+        'health': 'الصحة',
+        'education': 'التعليم',
+        'salary': 'الراتب',
+        'freelance': 'عمل حر',
+        'investment_return': 'عائد استثماري',
+        'other': 'متنوّع',
+      }[id] ??
+      id;
+
+  static String _categoryNameEn(String id) {
+    final names = {
+      'food': 'Food',
+      'transport': 'Transport',
+      'bills': 'Bills',
+      'entertainment': 'Entertainment',
+      'shopping': 'Shopping',
+      'health': 'Health',
+      'education': 'Education',
+      'salary': 'Salary',
+      'freelance': 'Freelance',
+      'investment_return': 'Investment Return',
+      'other': 'Other',
+    };
+    return names[id] ?? (id.isNotEmpty ? id[0].toUpperCase() + id.substring(1) : id);
+  }
+}
+
 /// Insight service implementation.
 ///
 /// Orchestrates:
 ///   1. Aggregate stats for the given month from [StatsRepository].
 ///   2. Optionally enrich with 3-month averages.
 ///   3. Persist the result via [InsightRepository].
+///   4. Persist in-app notification via [NotificationRepositoryImpl].
 class InsightServiceImpl implements InsightService {
   InsightServiceImpl({
     required this.statsRepository,
     required this.insightRepository,
     required this.llmProvider,
+    this.notificationRepository,
   });
 
   final StatsRepository statsRepository;
   final InsightRepository insightRepository;
   final LlmInsightProvider llmProvider;
+  final NotificationRepositoryImpl? notificationRepository;
 
   @override
   Future<MonthlyInsight> generate({
@@ -78,13 +165,37 @@ class InsightServiceImpl implements InsightService {
     );
 
     final insight = MonthlyInsight(
-      id: '${stats.monthKey}-${DateTime.now().millisecondsSinceEpoch}',
+      id: 'insight_${stats.monthKey}',
       monthKey: stats.monthKey,
       text: text,
       generatedAt: DateTime.now(),
       locale: locale,
     );
     await insightRepository.save(insight);
+
+    // BUG-002: Persist in-app notification for the newly generated Monthly Vision
+    if (notificationRepository != null) {
+      final isAr = locale.startsWith('ar');
+      final notifTitle = isAr ? 'رؤية شهرية جديدة' : 'New Monthly Vision';
+      final notifBody = isAr
+          ? 'تم تحديث تحليلاتك المالية لشهر ${stats.monthKey}.'
+          : 'Your financial insights for ${stats.monthKey} are ready.';
+      await notificationRepository!.insert(
+        AppNotification(
+          id: 'vision_${stats.monthKey}',
+          type: NotificationType.insight,
+          title: notifTitle,
+          body: notifBody,
+          createdAt: DateTime.now(),
+          isRead: false,
+          payload: jsonEncode({
+            'type': 'vision',
+            'monthKey': stats.monthKey,
+          }),
+        ),
+      );
+    }
+
     return insight;
   }
 
@@ -92,12 +203,8 @@ class InsightServiceImpl implements InsightService {
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
 }
 
-/// Default provider used in v1 — generates a useful insight locally
-/// without any network call. This keeps the app fully private by default
-/// and gives users immediate value even before they configure an LLM key.
-///
-/// To enable real LLM-driven insights, swap this with
-/// [OpenAiCompatibleInsightProvider] in main.dart.
+/// Default provider used in v1 — generates structured factual insight locally
+/// without any network call.
 class DummyLocalInsightProvider implements LlmInsightProvider {
   DummyLocalInsightProvider();
 
@@ -107,78 +214,30 @@ class DummyLocalInsightProvider implements LlmInsightProvider {
     required String locale,
     required String baseCurrency,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    final isAr = locale.startsWith('ar');
+    await Future.delayed(const Duration(milliseconds: 300));
     final cur = baseCurrency;
 
-    if (stats.topCategoryIds.isEmpty) {
-      return isAr
-          ? 'لم تُسجَّل مصروفات هذا الشهر بعد. ابدأ بإضافة معاملاتك اليومية لرؤية تحليلات مفيدة هنا.'
-          : 'No spending recorded this month yet. Start adding daily transactions to see useful analysis here.';
-    }
-
-    final topCat = stats.topCategoryIds.first;
-    final topAmount = stats.categoryTotals[topCat] ?? 0.0;
+    final topCat = stats.topCategoryIds.isNotEmpty ? stats.topCategoryIds.first : null;
+    final topAmount = topCat != null ? (stats.categoryTotals[topCat] ?? 0.0) : 0.0;
     final pctOfTotal = stats.totalSpent > 0
         ? ((topAmount / stats.totalSpent) * 100).round()
         : 0;
+    final avgForCat = topCat != null ? (stats.threeMonthAverageByCategory[topCat] ?? 0.0) : 0.0;
+    final pctVsAvg = avgForCat > 0 ? ((topAmount - avgForCat) / avgForCat * 100).round() : null;
 
-    if (isAr) {
-      final catName = _categoryNameAr(topCat);
-      // Only show comparison if we actually have 3-month data
-      final avgForCat = stats.threeMonthAverageByCategory[topCat] ?? 0.0;
-      if (avgForCat > 0) {
-        final pctVsAvg = ((topAmount - avgForCat) / avgForCat * 100).round();
-        final comparison = pctVsAvg >= 0
-            ? 'بزيادة ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر'
-            : 'بانخفاض ${pctVsAvg.abs()}% عن متوسط آخر 3 أشهر';
-        return 'فئة "$catName" هي أعلى إنفاقك هذا الشهر بمبلغ ${_fmt(topAmount)} $cur ($pctOfTotal% من الإجمالي)، $comparison.';
-      }
-      // No historical data — keep it factual
-      return 'فئة "$catName" هي أعلى إنفاقك هذا الشهر بمبلغ ${_fmt(topAmount)} $cur ($pctOfTotal% من الإجمالي).';
-    }
-    final catName = _categoryNameEn(topCat);
-    // Only show comparison if we actually have 3-month data
-    final avgForCat = stats.threeMonthAverageByCategory[topCat] ?? 0.0;
-    if (avgForCat > 0) {
-      final pctVsAvg = ((topAmount - avgForCat) / avgForCat * 100).round();
-      final comparison = pctVsAvg >= 0
-          ? 'up ${pctVsAvg.abs()}% vs your 3-month average'
-          : 'down ${pctVsAvg.abs()}% vs your 3-month average';
-      return '"$catName" is your highest spending category this month at ${_fmt(topAmount)} $cur ($pctOfTotal% of total), $comparison.';
-    }
-    // No historical data — keep it factual
-    return '"$catName" is your highest spending category this month at ${_fmt(topAmount)} $cur ($pctOfTotal% of total).';
-  }
-
-  String _fmt(double v) => v.toStringAsFixed(2);
-  String _categoryNameAr(String id) => {
-        'food': 'الطعام والشراب',
-        'transport': 'المواصلات',
-        'bills': 'الفواتير',
-        'entertainment': 'الترفيه',
-        'shopping': 'التسوّق',
-        'health': 'الصحة',
-        'education': 'التعليم',
-        'investment_return': 'عائد استثماري',
-      'other': 'متنوّع',
-      }[id] ??
-      id;
-  String _categoryNameEn(String id) {
-    final names = {
-      'food': 'Food',
-      'transport': 'Transport',
-      'bills': 'Bills',
-      'entertainment': 'Entertainment',
-      'shopping': 'Shopping',
-      'health': 'Health',
-      'education': 'Education',
-      'salary': 'Salary',
-      'freelance': 'Freelance',
-      'investment_return': 'Investment Return',
-      'other': 'Other',
+    final structured = {
+      'type': 'local_vision',
+      'version': 1,
+      'monthKey': stats.monthKey,
+      'hasSpending': stats.topCategoryIds.isNotEmpty,
+      'topCat': topCat,
+      'topAmount': topAmount,
+      'pctOfTotal': pctOfTotal,
+      'avgForCat': avgForCat,
+      'pctVsAvg': pctVsAvg,
+      'currency': cur,
     };
-    return names[id] ?? id[0].toUpperCase() + id.substring(1);
+    return jsonEncode(structured);
   }
 }
 

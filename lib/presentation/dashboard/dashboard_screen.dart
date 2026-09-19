@@ -14,6 +14,8 @@ import '../app/providers.dart';
 import '../transactions/transaction_edit_sheet.dart';
 import '../notifications/notifications_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../data/services/insight_service.dart';
+import '../common/skeleton.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -61,6 +63,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final settings = ref.watch(appSettingsProvider);
+    // Reactively watch transactions stream so any transaction creation, edit, or delete
+    // automatically triggers a dashboard re-evaluation.
+    ref.watch(allTransactionsProvider);
 
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
@@ -214,6 +219,7 @@ class _BalanceAndBudgetCard extends ConsumerWidget {
                   label: l.homeIncomeThisMonth,
                   value: Format.money(income, currency),
                   color: FinlensColors.income,
+                  isLoading: snap.connectionState != ConnectionState.done && !snap.hasData,
                 );
               },
             ),
@@ -226,6 +232,7 @@ class _BalanceAndBudgetCard extends ConsumerWidget {
                   label: l.homeSpentThisMonth,
                   value: Format.money(spent, currency),
                   color: FinlensColors.expense,
+                  isLoading: snap.connectionState != ConnectionState.done && !snap.hasData,
                 );
               },
             ),
@@ -248,10 +255,12 @@ class _StatRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    this.isLoading = false,
   });
   final String label;
   final String value;
   final Color color;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -260,10 +269,13 @@ class _StatRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: theme.textTheme.bodyMedium),
-        Text(
-          value,
-          style: theme.textTheme.titleMedium?.copyWith(color: color),
-        ),
+        if (isLoading)
+          const Skeleton(width: 80, height: 16)
+        else
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(color: color),
+          ),
       ],
     );
   }
@@ -311,12 +323,18 @@ class _PaydayBudgetRow extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    Format.moneyShort(dailyBudget, currency),
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: theme.colorScheme.primary,
+                  if (snap.connectionState != ConnectionState.done && !snap.hasData)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Skeleton(width: 80, height: 24),
+                    )
+                  else
+                    Text(
+                      Format.moneyShort(dailyBudget, currency),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
-                  ),
                   Text(
                     l.homeDailyBudget,
                     style: theme.textTheme.labelSmall,
@@ -336,12 +354,18 @@ class _PaydayBudgetRow extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    Format.money(balance, currency),
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: balance >= 0 ? FinlensColors.income : FinlensColors.expense,
+                  if (snap.connectionState != ConnectionState.done && !snap.hasData)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Skeleton(width: 90, height: 24),
+                    )
+                  else
+                    Text(
+                      Format.money(balance, currency),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: balance >= 0 ? FinlensColors.income : FinlensColors.expense,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -569,15 +593,25 @@ class _UpcomingBillsCard extends ConsumerWidget {
 // Insights preview card — shows last generated insight or "generate" button
 // ---------------------------------------------------------------------------
 
-class _InsightsPreviewCard extends ConsumerWidget {
+class _InsightsPreviewCard extends ConsumerStatefulWidget {
+  const _InsightsPreviewCard();
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_InsightsPreviewCard> createState() => _InsightsPreviewCardState();
+}
+
+class _InsightsPreviewCardState extends ConsumerState<_InsightsPreviewCard> {
+  bool _isGenerating = false;
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final insightRepoAsync = ref.watch(insightRepositoryProvider);
+    final settings = ref.watch(appSettingsProvider);
     final now = DateTime.now();
     final monthKey =
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final insightAsync = ref.watch(monthlyInsightStreamProvider(monthKey));
 
     return Card(
       child: Padding(
@@ -591,41 +625,54 @@ class _InsightsPreviewCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Text(l.insightsTitle, style: theme.textTheme.titleMedium),
                 const Spacer(),
-                TextButton(
-                  onPressed: () async {
-                    final service = await ref.read(insightServiceProvider.future);
-                    await service.generate(
-                      monthStart: DateTime(now.year, now.month, 1),
-                      locale: Localizations.localeOf(context).languageCode,
-                    );
-                  },
-                  child: Text(l.insightsGenerate),
-                ),
+                if (_isGenerating)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  TextButton(
+                    onPressed: () async {
+                      setState(() => _isGenerating = true);
+                      try {
+                        final service = await ref.read(insightServiceProvider.future);
+                        await service.generate(
+                          monthStart: DateTime(now.year, now.month, 1),
+                          locale: Localizations.localeOf(context).languageCode,
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isGenerating = false);
+                        }
+                      }
+                    },
+                    child: Text(l.insightsGenerate),
+                  ),
               ],
             ),
             const SizedBox(height: 8),
-            insightRepoAsync.when(
-              loading: () => Text(l.commonLoading),
+            insightAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Skeleton(width: double.infinity, height: 16),
+              ),
               error: (e, _) => Text(l.insightsError),
-              data: (repo) {
-                return FutureBuilder(
-                  future: repo.getForMonth(monthKey),
-                  builder: (context, snap) {
-                    if (snap.connectionState != ConnectionState.done) {
-                      return Text(l.commonLoading);
-                    }
-                    final insight = snap.data;
-                    if (insight == null) {
-                      return Text(
-                        l.insightsNever,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      );
-                    }
-                    return Text(insight.text, style: theme.textTheme.bodyMedium);
-                  },
+              data: (insight) {
+                if (insight == null) {
+                  return Text(
+                    l.insightsNever,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  );
+                }
+                final formatted = MonthlyVisionFormatter.format(
+                  insight.text,
+                  Localizations.localeOf(context).languageCode,
+                  baseCurrency: settings.baseCurrency,
                 );
+                return Text(formatted, style: theme.textTheme.bodyMedium);
               },
             ),
           ],
@@ -690,13 +737,19 @@ class _TopCategoriesCard extends ConsumerWidget {
             SizedBox(
               height: 180,
               child: stats == null
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Skeleton.box(height: 140),
+                    )
                   : FutureBuilder<Map<String, double>>(
                       future: stats.spentByCategory(monthStart, monthEnd,
                           type: TransactionType.expense),
                       builder: (context, snap) {
                         if (!snap.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Skeleton.box(height: 140),
+                          );
                         }
                         final data = snap.data!;
                         final sorted = data.entries.toList()
@@ -797,7 +850,15 @@ class _RecentTransactionsCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final txAsync = ref.watch(transactionRepositoryProvider);
     return txAsync.when(
-      loading: () => const Card(child: ListTile(title: Text('…'))),
+      loading: () => const Card(
+        child: Column(
+          children: [
+            TransactionSkeletonRow(),
+            TransactionSkeletonRow(),
+            TransactionSkeletonRow(),
+          ],
+        ),
+      ),
       error: (e, _) => Card(child: ListTile(title: Text(l.commonError))),
       data: (repo) {
         return FutureBuilder(
@@ -807,7 +868,15 @@ class _RecentTransactionsCard extends ConsumerWidget {
           ),
           builder: (context, snap) {
             if (!snap.hasData) {
-              return Card(child: ListTile(title: Text(l.commonLoading)));
+              return const Card(
+                child: Column(
+                  children: [
+                    TransactionSkeletonRow(),
+                    TransactionSkeletonRow(),
+                    TransactionSkeletonRow(),
+                  ],
+                ),
+              );
             }
             final list = snap.data!;
             if (list.isEmpty) {

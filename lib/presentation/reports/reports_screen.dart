@@ -45,6 +45,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final settings = ref.watch(appSettingsProvider);
+    ref.watch(allTransactionsProvider);
     final stats = ref.watch(statsRepositoryProvider).maybeWhen(
           data: (s) => s,
           orElse: () => null,

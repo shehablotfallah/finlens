@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../core/constants/categories.dart';
 import '../../core/theme/finlens_theme.dart';
 import '../../core/utils/format.dart';
@@ -9,6 +11,7 @@ import '../../domain/entities/transaction.dart';
 import '../../domain/usecases/usecases.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
+import '../common/skeleton.dart';
 
 class BillsScreen extends ConsumerWidget {
   const BillsScreen({super.key});
@@ -18,72 +21,91 @@ class BillsScreen extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final settings = ref.watch(appSettingsProvider);
-    final repoAsync = ref.watch(transactionRepositoryProvider);
+    final recurringAsync = ref.watch(recurringTransactionsProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(l.billsTitle)),
       body: SafeArea(
-        child: repoAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text(l.commonError)),
-          data: (repo) {
-            return FutureBuilder<List<Transaction>>(
-              future: repo.getRecurring(),
-              builder: (context, snap) {
-                if (!snap.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final txs = snap.data!
-                    .map((t) => (
-                          tx: t,
-                          due: NextRecurringDueDate().call(t),
-                        ))
-                    .toList()
-                  ..sort((a, b) => a.due.compareTo(b.due));
-                if (txs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.event_available_outlined,
-                            size: 64, color: theme.colorScheme.outline),
-                        const SizedBox(height: 12),
-                        Text(l.billsNoUpcoming, textAlign: TextAlign.center),
-                      ],
+        child: recurringAsync.when(
+          loading: () => ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: 4,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, __) => const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Skeleton.circle(width: 40),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Skeleton(width: 120, height: 16),
+                          SizedBox(height: 8),
+                          Skeleton(width: 180, height: 12),
+                        ],
+                      ),
                     ),
-                  );
-                }
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: txs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) {
-                    final entry = txs[i];
-                    final days =
-                        entry.due.difference(DateTime.now()).inDays;
-                    final overdue = days < 0;
-                    final soon = !overdue && days <= 3;
-                    return Card(
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: CircleAvatar(
-                          backgroundColor: (PredefinedCategories
-                                      .byId(entry.tx.categoryId)
-                                      ?.colorValue ??
-                                  FinlensColors.neutral)
-                              .withValues(alpha: 0.15),
-                          child: Icon(
-                            PredefinedCategories.byId(entry.tx.categoryId)
-                                    ?.icon ??
-                                Icons.event,
-                            color: PredefinedCategories.byId(entry.tx.categoryId)
-                                ?.colorValue,
-                          ),
-                        ),
-                        title: Text(
-                          Format.money(entry.tx.amountInBase, settings.baseCurrency),
-                          style: theme.textTheme.titleMedium,
-                        ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          error: (e, _) => Center(child: Text(l.commonError)),
+          data: (transactions) {
+            final txs = transactions
+                .map((t) => (
+                      tx: t,
+                      due: NextRecurringDueDate().call(t),
+                    ))
+                .toList()
+              ..sort((a, b) => a.due.compareTo(b.due));
+            if (txs.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(LucideIcons.calendarCheck,
+                        size: 64, color: theme.colorScheme.outline),
+                    const SizedBox(height: 12),
+                    Text(l.billsNoUpcoming, textAlign: TextAlign.center),
+                  ],
+                ),
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: txs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, i) {
+                final entry = txs[i];
+                final days =
+                    entry.due.difference(DateTime.now()).inDays;
+                final overdue = days < 0;
+                final soon = !overdue && days <= 3;
+                return Card(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    leading: CircleAvatar(
+                      backgroundColor: (PredefinedCategories
+                                  .byId(entry.tx.categoryId)
+                                  ?.colorValue ??
+                              FinlensColors.neutral)
+                          .withValues(alpha: 0.15),
+                      child: Icon(
+                        PredefinedCategories.byId(entry.tx.categoryId)
+                                ?.icon ??
+                            LucideIcons.calendar,
+                        color: PredefinedCategories.byId(entry.tx.categoryId)
+                            ?.colorValue,
+                      ),
+                    ),
+                    title: Text(
+                      Format.money(entry.tx.amountInBase, settings.baseCurrency),
+                      style: theme.textTheme.titleMedium,
+                    ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

@@ -6,6 +6,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../core/theme/finlens_theme.dart';
 import '../../domain/entities/app_notification.dart' as domain;
 import '../app/providers.dart';
+import '../common/skeleton.dart';
 
 /// Professional notifications screen.
 ///
@@ -46,7 +47,34 @@ class NotificationsScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: notifAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: 5,
+            separatorBuilder: (_, __) => Divider(
+              height: 1,
+              indent: 64,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
+            itemBuilder: (_, __) => const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Skeleton.circle(width: 40),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Skeleton(width: 140, height: 14),
+                        SizedBox(height: 8),
+                        Skeleton(width: 220, height: 12),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           error: (e, _) => Center(child: Text(l.commonError)),
           data: (notifications) {
             if (notifications.isEmpty) {

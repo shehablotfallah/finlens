@@ -96,6 +96,57 @@ class Transaction {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'type': type.name,
+        'amount': amount,
+        'currency': currency,
+        'amountInBase': amountInBase,
+        'exchangeRateAtTime': exchangeRateAtTime,
+        'categoryId': categoryId,
+        'date': date.toIso8601String(),
+        'note': note,
+        'isRecurring': isRecurring,
+        'recurrenceInterval': recurrenceInterval?.name,
+        'recurrenceCustomDays': recurrenceCustomDays,
+        'reminderDaysBefore': reminderDaysBefore,
+        'createdAt': createdAt?.toIso8601String(),
+        'updatedAt': updatedAt?.toIso8601String(),
+      };
+
+  factory Transaction.fromJson(Map<String, dynamic> json) {
+    return Transaction(
+      id: json['id'] as String,
+      type: json['type'] == 'income'
+          ? TransactionType.income
+          : TransactionType.expense,
+      amount: (json['amount'] as num).toDouble(),
+      currency: json['currency'] as String? ?? 'EGP',
+      amountInBase: (json['amountInBase'] as num?)?.toDouble() ??
+          (json['amount'] as num).toDouble(),
+      exchangeRateAtTime:
+          (json['exchangeRateAtTime'] as num?)?.toDouble() ?? 1.0,
+      categoryId: json['categoryId'] as String,
+      date: DateTime.parse(json['date'] as String),
+      note: json['note'] as String?,
+      isRecurring: json['isRecurring'] as bool? ?? false,
+      recurrenceInterval: json['recurrenceInterval'] != null
+          ? RecurrenceInterval.values.firstWhere(
+              (e) => e.name == json['recurrenceInterval'],
+              orElse: () => RecurrenceInterval.monthly,
+            )
+          : null,
+      recurrenceCustomDays: json['recurrenceCustomDays'] as int?,
+      reminderDaysBefore: json['reminderDaysBefore'] as int?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
+    );
+  }
 }
 
 /// Domain entity for a custom (user-defined) category.

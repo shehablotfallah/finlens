@@ -31,3 +31,5 @@ android/app/release/
 .dart_tool/flutter_gen/
 **/*.g.dart
 **/*.freezed.dart
+AGENT_PROGRESS.md
+PROJECT_CONTEXT.md

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:csv/csv.dart';
@@ -239,5 +240,50 @@ class ExportService {
       [XFile(file.path)],
       subject: subject ?? 'Finlens export',
     );
+  }
+
+  /// Exports all transactions and app settings into a structured JSON backup.
+  Future<File> exportAllDataJson({
+    required List<Transaction> transactions,
+    required Map<String, dynamic> settings,
+  }) async {
+    final payload = {
+      'app': 'Finlens',
+      'version': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'settings': settings,
+      'transactions': transactions.map((t) => t.toJson()).toList(),
+    };
+    final jsonString = const JsonEncoder.withIndent('  ').convert(payload);
+    final dir = await getTemporaryDirectory();
+    final file = File(p.join(
+      dir.path,
+      'finlens_backup_${DateTime.now().millisecondsSinceEpoch}.json',
+    ));
+    await file.writeAsString(jsonString);
+    return file;
+  }
+
+  /// Parses and validates a JSON backup payload.
+  ({List<Transaction> transactions, Map<String, dynamic>? settings}) parseBackupJson(
+      String jsonString) {
+    final dynamic decoded = jsonDecode(jsonString);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Invalid backup format');
+    }
+    final rawTxs = decoded['transactions'];
+    if (rawTxs is! List) {
+      throw const FormatException('Transactions array missing in backup');
+    }
+    final list = <Transaction>[];
+    for (final item in rawTxs) {
+      if (item is Map<String, dynamic>) {
+        list.add(Transaction.fromJson(item));
+      }
+    }
+    final rawSettings = decoded['settings'];
+    final settingsMap =
+        rawSettings is Map<String, dynamic> ? rawSettings : null;
+    return (transactions: list, settings: settingsMap);
   }
 }

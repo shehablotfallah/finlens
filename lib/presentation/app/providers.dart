@@ -17,6 +17,7 @@ import '../../domain/repositories/repositories.dart';
 import '../../domain/usecases/usecases.dart';
 import '../../data/repositories/notification_repository_impl.dart';
 import '../../domain/entities/app_notification.dart' as notif_domain;
+import '../../domain/entities/transaction.dart' as tx_domain;
 
 // ---------------------------------------------------------------------------
 // Async singletons
@@ -107,6 +108,25 @@ final allNotificationsProvider = StreamProvider<List<notif_domain.AppNotificatio
   yield* repo.watchAll();
 });
 
+/// Reactive stream of all transactions from Drift.
+/// Automatically emits whenever any transaction is inserted, updated, or deleted.
+final allTransactionsProvider = StreamProvider<List<tx_domain.Transaction>>((ref) async* {
+  final repo = await ref.watch(transactionRepositoryProvider.future);
+  yield* repo.watchAll();
+});
+
+/// Reactive stream of recurring transactions from Drift.
+final recurringTransactionsProvider = StreamProvider<List<tx_domain.Transaction>>((ref) async* {
+  final repo = await ref.watch(transactionRepositoryProvider.future);
+  yield* repo.watchRecurring();
+});
+
+/// Reactive stream of the monthly insight for a specific monthKey (e.g. '2026-09').
+final monthlyInsightStreamProvider = StreamProvider.family<tx_domain.MonthlyInsight?, String>((ref, monthKey) async* {
+  final repo = await ref.watch(insightRepositoryProvider.future);
+  yield* repo.watchForMonth(monthKey);
+});
+
 final exchangeRateProvider = Provider<ExchangeRateProviderImpl>((ref) {
   return ExchangeRateProviderImpl();
 });
@@ -120,10 +140,12 @@ final insightServiceProvider =
     FutureProvider<InsightService>((ref) async {
   final stats = await ref.watch(statsRepositoryProvider.future);
   final insights = await ref.watch(insightRepositoryProvider.future);
+  final notifs = await ref.watch(notificationRepositoryProvider.future);
   return InsightServiceImpl(
     statsRepository: stats,
     insightRepository: insights,
     llmProvider: DummyLocalInsightProvider(),
+    notificationRepository: notifs,
   );
 });
 

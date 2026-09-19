@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,19 +10,47 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/categories.dart';
 import '../../core/theme/finlens_theme.dart';
 import '../../core/utils/format.dart';
+import '../../domain/entities/app_notification.dart';
 import '../../domain/entities/transaction.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
 import '../common/inline_error_banner.dart';
 
+/// Draft container to guarantee strict form state isolation between Expense and Income.
+class _TransactionDraft {
+  String? categoryId;
+  String amountText;
+  String noteText;
+  String currency;
+  DateTime date;
+  bool recurring;
+  RecurrenceInterval interval;
+  int customDays;
+  int reminderDays;
+  String? amountError;
+  String? categoryError;
+
+  _TransactionDraft({
+    this.categoryId,
+    this.amountText = '',
+    this.noteText = '',
+    this.currency = 'EGP',
+    DateTime? date,
+    this.recurring = false,
+    this.interval = RecurrenceInterval.monthly,
+    this.customDays = 14,
+    this.reminderDays = AppConstants.defaultReminderDaysBefore,
+    this.amountError,
+    this.categoryError,
+  }) : date = date ?? DateTime.now();
+}
+
 /// Bottom-sheet used for both quick-add and edit of a transaction.
 ///
-/// FORM STATE ISOLATION (CRITICAL FIX):
-/// When the user switches between Expense and Income, the form state
-/// is FULLY RESET — the category, amount, note, and all other fields
-/// are cleared so that Expense and Income drafts do NOT contaminate
-/// each other. The only exception is the `prefill` (edit mode), where
-/// we're editing an existing transaction and want to preserve its values.
+/// FORM STATE ISOLATION:
+/// Expense and Income maintain completely independent draft states.
+/// Switching between Expense and Income preserves user input for both
+/// without leaking selected categories, notes, amounts, or errors.
 class TransactionEditSheet extends ConsumerStatefulWidget {
   const TransactionEditSheet({super.key, this.prefill});
   final Transaction? prefill;
@@ -34,19 +64,16 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
   late TransactionType _type;
   late final TextEditingController _amountCtrl;
   late final TextEditingController _noteCtrl;
-  late DateTime _date;
-  late String? _categoryId; // null = not selected (required)
-  late String _currency;
-  late bool _recurring;
-  late RecurrenceInterval _interval;
-  late int _customDays;
-  late int _reminderDays;
+
+  late final _TransactionDraft _expenseDraft;
+  late final _TransactionDraft _incomeDraft;
 
   bool _isEdit = false;
   bool _saving = false;
-  String? _amountError;
-  String? _categoryError;
   String? _dbError;
+
+  _TransactionDraft get _activeDraft =>
+      _type == TransactionType.expense ? _expenseDraft : _incomeDraft;
 
   @override
   void initState() {
@@ -54,24 +81,71 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     final p = widget.prefill;
     _isEdit = p?.id.isNotEmpty == true;
     _type = p?.type ?? TransactionType.expense;
-    _amountCtrl = TextEditingController(
-        text: p?.amount == 0 || p?.amount == null ? '' : p!.amount.toString());
-    _noteCtrl = TextEditingController(text: p?.note ?? '');
-    _date = p?.date ?? DateTime.now();
-    // Category: if editing an existing transaction, use its category.
-    // If creating a new one, start with NO category selected (null)
-    // so the user must explicitly choose one — category is REQUIRED.
-    _categoryId = p?.categoryId;
-    _currency = p?.currency ?? 'EGP';
-    _recurring = p?.isRecurring ?? false;
-    _interval = p?.recurrenceInterval ?? RecurrenceInterval.monthly;
-    _customDays = p?.recurrenceCustomDays ?? 14;
-    _reminderDays =
+
+    final baseCurrency = ref.read(appSettingsProvider).baseCurrency;
+
+    final initialAmount =
+        p?.amount == 0 || p?.amount == null ? '' : p!.amount.toString();
+    final initialNote = p?.note ?? '';
+    final initialDate = p?.date ?? DateTime.now();
+    final initialCategory = p?.categoryId;
+    final initialCurrency = p?.currency ?? baseCurrency;
+    final initialRecurring = p?.isRecurring ?? false;
+    final initialInterval =
+        p?.recurrenceInterval ?? RecurrenceInterval.monthly;
+    final initialCustomDays = p?.recurrenceCustomDays ?? 14;
+    final initialReminderDays =
         p?.reminderDaysBefore ?? AppConstants.defaultReminderDaysBefore;
+
+    if (_type == TransactionType.expense) {
+      _expenseDraft = _TransactionDraft(
+        categoryId: initialCategory,
+        amountText: initialAmount,
+        noteText: initialNote,
+        currency: initialCurrency,
+        date: initialDate,
+        recurring: initialRecurring,
+        interval: initialInterval,
+        customDays: initialCustomDays,
+        reminderDays: initialReminderDays,
+      );
+      _incomeDraft = _TransactionDraft(
+        currency: baseCurrency,
+        date: DateTime.now(),
+      );
+    } else {
+      _expenseDraft = _TransactionDraft(
+        currency: baseCurrency,
+        date: DateTime.now(),
+      );
+      _incomeDraft = _TransactionDraft(
+        categoryId: initialCategory,
+        amountText: initialAmount,
+        noteText: initialNote,
+        currency: initialCurrency,
+        date: initialDate,
+        recurring: initialRecurring,
+        interval: initialInterval,
+        customDays: initialCustomDays,
+        reminderDays: initialReminderDays,
+      );
+    }
+
+    _amountCtrl = TextEditingController(text: _activeDraft.amountText);
+    _noteCtrl = TextEditingController(text: _activeDraft.noteText);
+
     _amountCtrl.addListener(() {
-      if (_amountError != null && _amountCtrl.text.trim().isNotEmpty) {
-        setState(() => _amountError = null);
+      _activeDraft.amountText = _amountCtrl.text;
+      if (_activeDraft.amountError != null &&
+          _amountCtrl.text.trim().isNotEmpty) {
+        setState(() => _activeDraft.amountError = null);
+      } else {
+        setState(() {}); // refresh formValid state for Save button
       }
+    });
+
+    _noteCtrl.addListener(() {
+      _activeDraft.noteText = _noteCtrl.text;
     });
   }
 
@@ -82,35 +156,36 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     super.dispose();
   }
 
-  /// Switches between Expense and Income with FULL STATE RESET.
+  /// Switches between Expense and Income with independent draft isolation.
   ///
-  /// This is the fix for the form state leak bug. When switching types:
-  ///   - Category is reset to null (must re-select)
-  ///   - Amount is cleared
-  ///   - Note is cleared
-  ///   - Recurring is reset to false
-  ///   - Date stays (reasonable)
-  ///   - Currency stays (reasonable)
+  /// Preserves the user's progress in both Expense and Income drafts.
+  /// Category, amount, notes, and errors never contaminate each other.
   void _switchType(TransactionType newType) {
     if (_type == newType) return;
-    if (_isEdit) return; // Don't reset when editing
+    _activeDraft.amountText = _amountCtrl.text;
+    _activeDraft.noteText = _noteCtrl.text;
+
     setState(() {
       _type = newType;
-      _categoryId = null;
-      _amountCtrl.clear();
-      _noteCtrl.clear();
-      _recurring = false;
-      _amountError = null;
-      _categoryError = null;
+      _amountCtrl.text = _activeDraft.amountText;
+      _noteCtrl.text = _activeDraft.noteText;
       _dbError = null;
     });
+  }
+
+  bool _isCategoryValid(String? catId, TransactionType type) {
+    if (catId == null || catId.trim().isEmpty) return false;
+    final list = type == TransactionType.expense
+        ? PredefinedCategories.expenses
+        : PredefinedCategories.incomes;
+    return list.any((c) => c.id == catId);
   }
 
   bool _isFormValid() {
     final raw = _amountCtrl.text.trim();
     final amount = double.tryParse(raw);
     final amountValid = raw.isNotEmpty && amount != null && amount > 0;
-    final categoryValid = _categoryId != null && _categoryId!.isNotEmpty;
+    final categoryValid = _isCategoryValid(_activeDraft.categoryId, _type);
     return amountValid && categoryValid;
   }
 
@@ -119,19 +194,20 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     final raw = _amountCtrl.text.trim();
     final amount = double.tryParse(raw);
     if (raw.isEmpty) {
-      setState(() => _amountError = l.errorAmountRequired);
+      setState(() => _activeDraft.amountError = l.errorAmountRequired);
       valid = false;
     } else if (amount == null || amount <= 0) {
-      setState(() => _amountError = l.errorAmountInvalid);
+      setState(() => _activeDraft.amountError = l.errorAmountInvalid);
       valid = false;
     } else {
-      setState(() => _amountError = null);
+      setState(() => _activeDraft.amountError = null);
     }
-    if (_categoryId == null || _categoryId!.isEmpty) {
-      setState(() => _categoryError = l.errorCategoryRequired);
+
+    if (!_isCategoryValid(_activeDraft.categoryId, _type)) {
+      setState(() => _activeDraft.categoryError = l.errorCategoryRequired);
       valid = false;
     } else {
-      setState(() => _categoryError = null);
+      setState(() => _activeDraft.categoryError = null);
     }
     return valid;
   }
@@ -147,30 +223,31 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     });
 
     try {
+      final draft = _activeDraft;
       final amount = double.parse(_amountCtrl.text.trim());
       final settings = ref.read(appSettingsProvider);
       final rateProv = ref.read(exchangeRateProvider);
       rateProv.setInitialRate('USD', settings.usdToEgpRate);
-      final rate = await rateProv.rateFor(_currency);
-      final base = _currency == 'EGP' ? amount : amount * rate;
+      final rate = await rateProv.rateFor(draft.currency);
+      final base = draft.currency == 'EGP' ? amount : amount * rate;
 
       final tx = Transaction(
         id: widget.prefill?.id ?? const Uuid().v4(),
         type: _type,
         amount: amount,
-        currency: _currency,
+        currency: draft.currency,
         amountInBase: base,
         exchangeRateAtTime: rate,
-        categoryId: _categoryId!,
-        date: _date,
+        categoryId: draft.categoryId!,
+        date: draft.date,
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-        isRecurring: _recurring,
-        recurrenceInterval: _recurring ? _interval : null,
+        isRecurring: draft.recurring,
+        recurrenceInterval: draft.recurring ? draft.interval : null,
         recurrenceCustomDays:
-            _recurring && _interval == RecurrenceInterval.custom
-                ? _customDays
+            draft.recurring && draft.interval == RecurrenceInterval.custom
+                ? draft.customDays
                 : null,
-        reminderDaysBefore: _recurring ? _reminderDays : null,
+        reminderDaysBefore: draft.recurring ? draft.reminderDays : null,
         createdAt: widget.prefill?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -185,6 +262,8 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
       if (tx.isRecurring) {
         try {
           final notif = ref.read(notificationServiceProvider);
+          // Request permission politely if not yet granted
+          await notif.ensurePermissionWithDialog(context: context, l: l);
           final id = tx.hashCode & 0x7FFFFFFF;
           await notif.scheduleBillReminder(
             id: id,
@@ -194,6 +273,36 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
             dueDate: tx.date,
             daysBefore: tx.reminderDaysBefore ?? 2,
           );
+          // BUG-002: Persist in-app notification record with deterministic ID
+          final notifRepo = await ref.read(notificationRepositoryProvider.future);
+          await notifRepo.insert(
+            AppNotification(
+              id: 'bill_${tx.id}',
+              type: NotificationType.billReminder,
+              title:
+                  '${_type == TransactionType.expense ? l.txTypeExpense : l.txTypeIncome} • ${Format.money(tx.amount, tx.currency)}',
+              body: tx.note != null && tx.note!.isNotEmpty
+                  ? tx.note!
+                  : '${Format.date(tx.date)} • ${_categoryLabel(l, tx.categoryId)}',
+              createdAt: DateTime.now(),
+              isRead: false,
+              payload: jsonEncode({
+                'type': 'bill',
+                'transactionId': tx.id,
+                'dueDate': tx.date.toIso8601String(),
+                'amount': tx.amount,
+                'currency': tx.currency,
+              }),
+            ),
+          );
+        } catch (_) {}
+      } else if (_isEdit && widget.prefill?.isRecurring == true) {
+        // User disabled recurring on an existing transaction: clean up scheduled & in-app notification
+        try {
+          final notif = ref.read(notificationServiceProvider);
+          await notif.cancelReminder(widget.prefill.hashCode & 0x7FFFFFFF);
+          final notifRepo = await ref.read(notificationRepositoryProvider.future);
+          await notifRepo.delete('bill_${widget.prefill!.id}');
         } catch (_) {}
       }
 
@@ -247,6 +356,14 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
     try {
       final repo = await ref.read(transactionRepositoryProvider.future);
       await repo.delete(widget.prefill!.id);
+      if (widget.prefill!.isRecurring) {
+        try {
+          final notif = ref.read(notificationServiceProvider);
+          await notif.cancelReminder(widget.prefill.hashCode & 0x7FFFFFFF);
+          final notifRepo = await ref.read(notificationRepositoryProvider.future);
+          await notifRepo.delete('bill_${widget.prefill!.id}');
+        } catch (_) {}
+      }
       ref.invalidate(statsRepositoryProvider);
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -266,6 +383,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final draft = _activeDraft;
     final formValid = _isFormValid();
     return Padding(
       padding: EdgeInsets.only(
@@ -340,7 +458,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                       labelText: l.commonAmount,
                       hintText: l.txHintAmount,
                       prefixIcon: const Icon(LucideIcons.wallet),
-                      errorText: _amountError,
+                      errorText: draft.amountError,
                     ),
                     enabled: !_saving,
                   ),
@@ -349,13 +467,15 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<String>(
-                    value: _currency,
+                    value: draft.currency,
                     decoration: InputDecoration(labelText: l.commonCurrency),
                     items: const [
                       DropdownMenuItem(value: 'EGP', child: Text('EGP')),
                       DropdownMenuItem(value: 'USD', child: Text('USD')),
                     ],
-                    onChanged: _saving ? null : (v) => setState(() => _currency = v!),
+                    onChanged: _saving
+                        ? null
+                        : (v) => setState(() => draft.currency = v!),
                   ),
                 ),
               ],
@@ -371,11 +491,11 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                         ?.copyWith(color: theme.colorScheme.error)),
               ],
             ),
-            if (_categoryError != null)
+            if (draft.categoryError != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  _categoryError!,
+                  draft.categoryError!,
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.error),
                 ),
@@ -388,7 +508,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                       ? PredefinedCategories.expenses
                       : PredefinedCategories.incomes)
                   .map((c) {
-                final selected = c.id == _categoryId;
+                final selected = c.id == draft.categoryId;
                 return ChoiceChip(
                   label: Text(_categoryLabel(l, c.id)),
                   avatar: Icon(c.icon, color: c.colorValue, size: 18),
@@ -396,8 +516,8 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                   onSelected: _saving
                       ? null
                       : (_) => setState(() {
-                            _categoryId = c.id;
-                            _categoryError = null;
+                            draft.categoryId = c.id;
+                            draft.categoryError = null;
                           }),
                 );
               }).toList(),
@@ -420,11 +540,11 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                   : () async {
                       final picked = await showDatePicker(
                         context: context,
-                        initialDate: _date,
+                        initialDate: draft.date,
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2100),
                       );
-                      if (picked != null) setState(() => _date = picked);
+                      if (picked != null) setState(() => draft.date = picked);
                     },
               child: InputDecorator(
                 decoration: InputDecoration(
@@ -432,18 +552,19 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                   prefixIcon: const Icon(LucideIcons.calendar),
                 ),
                 child: Text(
-                  '${_date.day}/${_date.month}/${_date.year}',
+                  '${draft.date.day}/${draft.date.month}/${draft.date.year}',
                   style: theme.textTheme.bodyLarge,
                 ),
               ),
             ),
             const SizedBox(height: 12),
             SwitchListTile(
-              value: _recurring,
-              onChanged: _saving ? null : (v) => setState(() => _recurring = v),
+              value: draft.recurring,
+              onChanged:
+                  _saving ? null : (v) => setState(() => draft.recurring = v),
               title: Text(l.txRecurringLabel),
             ),
-            if (_recurring) ...[
+            if (draft.recurring) ...[
               const SizedBox(height: 8),
               Text(l.txRecurringInterval, style: theme.textTheme.bodySmall),
               const SizedBox(height: 4),
@@ -459,19 +580,21 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                       value: RecurrenceInterval.custom,
                       label: Text(l.txIntervalCustom)),
                 ],
-                selected: {_interval},
-                onSelectionChanged:
-                    _saving ? null : (s) => setState(() => _interval = s.first),
+                selected: {draft.interval},
+                onSelectionChanged: _saving
+                    ? null
+                    : (s) => setState(() => draft.interval = s.first),
               ),
-              if (_interval == RecurrenceInterval.custom) ...[
+              if (draft.interval == RecurrenceInterval.custom) ...[
                 const SizedBox(height: 8),
                 TextFormField(
-                  initialValue: '$_customDays',
+                  key: ValueKey('custom_days_${_type.name}'),
+                  initialValue: '${draft.customDays}',
                   decoration: InputDecoration(labelText: l.txIntervalCustom),
                   keyboardType: TextInputType.number,
                   enabled: !_saving,
                   onChanged: (v) =>
-                      _customDays = int.tryParse(v) ?? _customDays,
+                      draft.customDays = int.tryParse(v) ?? draft.customDays,
                 ),
               ],
               const SizedBox(height: 8),
@@ -479,7 +602,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                 children: [
                   Expanded(child: Text(l.txReminderDays)),
                   DropdownButton<int>(
-                    value: _reminderDays,
+                    value: draft.reminderDays,
                     items: [0, 1, 2, 3, 5, 7]
                         .map((d) => DropdownMenuItem(
                               value: d,
@@ -488,7 +611,7 @@ class _TransactionEditSheetState extends ConsumerState<TransactionEditSheet> {
                         .toList(),
                     onChanged: _saving
                         ? null
-                        : (v) => setState(() => _reminderDays = v ?? 2),
+                        : (v) => setState(() => draft.reminderDays = v ?? 2),
                   ),
                 ],
               ),

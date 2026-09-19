@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -110,6 +113,84 @@ class NotificationService {
   /// Used when the user has permanently denied notification permission.
   Future<void> openNotificationSettings() async {
     await openAppSettings();
+  }
+
+  /// Centralized helper to check and request notification permission when the user
+  /// performs an action requiring notifications (e.g. enabling a bill reminder).
+  ///
+  /// - If already enabled at OS level, returns true immediately without showing any dialog.
+  /// - If disabled, prompts with a clear explanatory dialog before requesting OS permission.
+  /// - If permanently denied, presents an explanation with an "Open Settings" button.
+  /// - Remembers user choice and prevents repeated intrusive prompts.
+  Future<bool> ensurePermissionWithDialog({
+    required BuildContext context,
+    required AppLocalizations l,
+  }) async {
+    final enabled = await areNotificationsEnabled();
+    if (enabled) return true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final deniedCount = prefs.getInt('notif_perm_denied_count') ?? 0;
+
+    if (!context.mounted) return false;
+
+    // Show friendly pre-permission explanatory dialog
+    final agree = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.notifPermTitle),
+        content: Text(l.notifPermMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.notifPermSkip),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.notifPermAllow),
+          ),
+        ],
+      ),
+    );
+
+    if (agree != true) {
+      await prefs.setInt('notif_perm_denied_count', deniedCount + 1);
+      return false;
+    }
+
+    final result = await requestPermission();
+    if (result == NotificationPermissionResult.granted) {
+      await prefs.setInt('notif_perm_denied_count', 0);
+      return true;
+    } else if (result == NotificationPermissionResult.permanentlyDenied) {
+      await prefs.setInt('notif_perm_denied_count', deniedCount + 1);
+      if (context.mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(l.notifPermDeniedTitle),
+            content: Text(l.notifPermDeniedBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(l.commonCancel),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  openNotificationSettings();
+                },
+                child: Text(l.notifPermOpenSettings),
+              ),
+            ],
+          ),
+        );
+      }
+      return false;
+    } else {
+      await prefs.setInt('notif_perm_denied_count', deniedCount + 1);
+      return false;
+    }
   }
 
   /// Schedules a reminder N days before the due date.
