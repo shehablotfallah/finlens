@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../core/constants/categories.dart';
 import '../../core/theme/finlens_theme.dart';
 import '../../core/utils/format.dart';
 import '../../domain/entities/transaction.dart';
 import '../../domain/usecases/usecases.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../app/providers.dart';
 import '../common/skeleton.dart';
 
@@ -24,7 +23,9 @@ class BillsScreen extends ConsumerWidget {
     final recurringAsync = ref.watch(recurringTransactionsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.billsTitle)),
+      appBar: AppBar(
+        title: Text(l.billsTitle),
+      ),
       body: SafeArea(
         child: recurringAsync.when(
           loading: () => ListView.separated(
@@ -53,110 +54,136 @@ class BillsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          error: (e, _) => Center(child: Text(l.commonError)),
+          error: (e, _) => Center(
+            child: Text(l.commonError),
+          ),
           data: (transactions) {
             final txs = transactions
-                .map((t) => (
-                      tx: t,
-                      due: NextRecurringDueDate().call(t),
-                    ))
+                .map(
+                  (t) => (
+                    tx: t,
+                    due: NextRecurringDueDate().call(t),
+                  ),
+                )
                 .toList()
               ..sort((a, b) => a.due.compareTo(b.due));
+
             if (txs.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(LucideIcons.calendarCheck,
-                        size: 64, color: theme.colorScheme.outline),
+                    Icon(
+                      LucideIcons.calendarCheck,
+                      size: 64,
+                      color: theme.colorScheme.outline,
+                    ),
                     const SizedBox(height: 12),
-                    Text(l.billsNoUpcoming, textAlign: TextAlign.center),
+                    Text(
+                      l.billsNoUpcoming,
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               );
             }
+
             return ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: txs.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, i) {
                 final entry = txs[i];
+
                 final days =
                     entry.due.difference(DateTime.now()).inDays;
+
                 final overdue = days < 0;
                 final soon = !overdue && days <= 3;
+
+                final category =
+                    PredefinedCategories.byId(entry.tx.categoryId);
+
                 return Card(
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(16),
                     leading: CircleAvatar(
-                      backgroundColor: (PredefinedCategories
-                                  .byId(entry.tx.categoryId)
-                                  ?.colorValue ??
-                              FinlensColors.neutral)
-                          .withValues(alpha: 0.15),
+                      backgroundColor:
+                          (category?.colorValue ?? FinlensColors.neutral)
+                              .withValues(alpha: 0.15),
                       child: Icon(
-                        PredefinedCategories.byId(entry.tx.categoryId)
-                                ?.icon ??
-                            LucideIcons.calendar,
-                        color: PredefinedCategories.byId(entry.tx.categoryId)
-                            ?.colorValue,
+                        category?.icon ?? LucideIcons.calendar,
+                        color: category?.colorValue,
                       ),
                     ),
                     title: Text(
-                      Format.money(entry.tx.amountInBase, settings.baseCurrency),
+                      Format.money(
+                        entry.tx.amountInBase,
+                        settings.baseCurrency,
+                      ),
                       style: theme.textTheme.titleMedium,
                     ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${_intervalLabel(l, entry.tx.recurrenceInterval)} • ${_categoryLabel(l, entry.tx.categoryId)}',
-                              style: theme.textTheme.bodySmall,
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: overdue
-                                    ? FinlensColors.expense.withValues(alpha: 0.15)
-                                    : soon
-                                        ? FinlensColors.warning.withValues(alpha: 0.15)
-                                        : theme.colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                overdue
-                                    ? l.billsDueIn(0)
-                                    : l.billsDueIn(days < 0 ? 0 : days),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: overdue
-                                      ? FinlensColors.expense
-                                      : soon
-                                          ? FinlensColors.warning
-                                          : theme.colorScheme.primary,
-                                ),
-                              ),
-                            ),
-                          ],
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_intervalLabel(l, entry.tx.recurrenceInterval)} • '
+                          '${_categoryLabel(l, entry.tx.categoryId)}',
+                          style: theme.textTheme.bodySmall,
                         ),
-                        trailing: Text(
-                          DateFormat('MMM d').format(entry.due),
-                          style: theme.textTheme.bodyMedium,
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: overdue
+                                ? FinlensColors.expense
+                                    .withValues(alpha: 0.15)
+                                : soon
+                                    ? FinlensColors.warning
+                                        .withValues(alpha: 0.15)
+                                    : theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            overdue
+                                ? l.billsDueIn(0)
+                                : l.billsDueIn(
+                                    days < 0 ? 0 : days,
+                                  ),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: overdue
+                                  ? FinlensColors.expense
+                                  : soon
+                                      ? FinlensColors.warning
+                                      : theme.colorScheme.primary,
+                            ),
+                          ),
                         ),
-                      ),
-                    );
-                  },
-              );
-            },
-          );
+                      ],
+                    ),
+                    trailing: Text(
+                      DateFormat('MMM d').format(entry.due),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
 
-  String _intervalLabel(AppLocalizations l, RecurrenceInterval? i) {
+  String _intervalLabel(
+    AppLocalizations l,
+    RecurrenceInterval? i,
+  ) {
     if (i == null) return '';
+
     return switch (i) {
       RecurrenceInterval.weekly => l.txIntervalWeekly,
       RecurrenceInterval.monthly => l.txIntervalMonthly,
@@ -164,7 +191,10 @@ class BillsScreen extends ConsumerWidget {
     };
   }
 
-  String _categoryLabel(AppLocalizations l, String id) {
+  String _categoryLabel(
+    AppLocalizations l,
+    String id,
+  ) {
     return switch (id) {
       'food' => l.txCategoryFood,
       'transport' => l.txCategoryTransport,
