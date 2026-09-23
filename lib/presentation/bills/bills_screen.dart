@@ -147,7 +147,6 @@ class BillsScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                );
               },
             );
           },
