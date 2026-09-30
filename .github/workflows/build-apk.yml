@@ -2,12 +2,18 @@ name: Build Finlens APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch: {}   # allows manual trigger from the Actions tab
+    branches: [main, master]
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,7 +37,7 @@ jobs:
       - name: Generate localization files
         run: flutter gen-l10n
 
-      - name: Run code generation (drift/freezed/json_serializable)
+      - name: Run code generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Analyze (non-blocking)
@@ -40,9 +46,22 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release --no-tree-shake-icons
 
+      - name: Rename APK
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/finlens-${GITHUB_REF_NAME}.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: finlens-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/finlens-${GITHUB_REF_NAME}.apk
           retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/finlens-${GITHUB_REF_NAME}.apk
+          generate_release_notes: true
+          name: Finlens ${{ github.ref_name }}
