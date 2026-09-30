@@ -49,19 +49,20 @@ jobs:
       - name: Rename APK
         run: |
           mv build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/finlens-${GITHUB_REF_NAME}.apk
+            build/app/outputs/flutter-apk/finlens.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: finlens-release-apk
-          path: build/app/outputs/flutter-apk/finlens-${GITHUB_REF_NAME}.apk
+          path: build/app/outputs/flutter-apk/finlens.apk
           retention-days: 30
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/finlens-${GITHUB_REF_NAME}.apk
-          generate_release_notes: true
+          tag_name: ${{ github.ref_name }}
           name: Finlens ${{ github.ref_name }}
+          files: build/app/outputs/flutter-apk/finlens.apk
+          generate_release_notes: true
